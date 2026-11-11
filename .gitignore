@@ -1,0 +1,42 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Environment & secrets (NEVER commit .env files)
+.env
+.env.*
+!.env.example
+
+# Supabase local temp files
+supabase/.branches
+supabase/.temp
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
+.next/
+out/
+build/
+coverage/
+supabase/.temp/
+supabase/.branches/
+.vercel/
+npm-debug.log*
+desktop.ini
+changes.diff
+fix.diff
+*.diff
+uploads/
+tmp/
