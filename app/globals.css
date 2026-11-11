@@ -2,10 +2,84 @@
 
 :root {
   color-scheme: light;
+
+  /* Surface tokens */
+  --color-surface-canvas: #f7f8fa;
+  --color-surface-panel: #ffffff;
+  --color-surface-subtle: #eff2f6;
+  --color-surface-warning: #fef8e7;
+  --color-surface-danger: #fef2f2;
+  --color-surface-success: #eefaf1;
+  --color-surface-info: #eef4f7;
+
+  /* Text tokens (all >= 4.5:1 contrast on paired surfaces) */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-muted: #475569;
+  --color-text-inverse: #ffffff;
+  --color-text-warning: #6b3f00;
+  --color-text-danger: #991b1b;
+  --color-text-success: #14532d;
+  --color-text-info: #0c3d4c;
+
+  /* Border tokens */
+  --color-border-subtle: #e2e8f0;
+  --color-border-default: #cbd5e1;
+  --color-border-strong: #64748b;
+  --color-border-warning: #b45309;
+  --color-border-danger: #b91c1c;
+  --color-border-success: #15803d;
+  --color-border-info: #0f4c5c;
+
+  /* Brand & interactive accent tokens */
+  --color-accent-primary: #0f4c5c;
+  --color-accent-primary-hover: #0a3642;
+  --color-accent-soft: #e6f0f2;
+  --color-focus-ring: #0f4c5c;
+}
+
+@theme inline {
+  --color-surface-canvas: var(--color-surface-canvas);
+  --color-surface-panel: var(--color-surface-panel);
+  --color-surface-subtle: var(--color-surface-subtle);
+  --color-surface-warning: var(--color-surface-warning);
+  --color-surface-danger: var(--color-surface-danger);
+  --color-surface-success: var(--color-surface-success);
+  --color-surface-info: var(--color-surface-info);
+
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-text-warning: var(--color-text-warning);
+  --color-text-danger: var(--color-text-danger);
+  --color-text-success: var(--color-text-success);
+  --color-text-info: var(--color-text-info);
+
+  --color-border-subtle: var(--color-border-subtle);
+  --color-border-default: var(--color-border-default);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-warning: var(--color-border-warning);
+  --color-border-danger: var(--color-border-danger);
+  --color-border-success: var(--color-border-success);
+  --color-border-info: var(--color-border-info);
+
+  --color-accent-primary: var(--color-accent-primary);
+  --color-accent-primary-hover: var(--color-accent-primary-hover);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-focus-ring: var(--color-focus-ring);
+
+  --font-sans: var(--font-ui-sans), var(--font-bn-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif-contract: var(--font-contract-serif), Georgia, "Times New Roman", serif;
 }
 
 body {
-  background-color: #f8fafc;
-  color: #0f172a;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--color-surface-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }

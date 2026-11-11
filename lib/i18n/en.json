@@ -1,0 +1,102 @@
+{
+  "banner": {
+    "badge": "Notice",
+    "text": "Not legal advice: Chukti AI helps organize contract text and review preferences. Have a qualified lawyer review important terms before signing."
+  },
+  "header": {
+    "brand": "Chukti AI",
+    "subtitle": "Contract protection copilot",
+    "phaseLabel": "Phase 1: Document & Playbook",
+    "languageLabel": "Language",
+    "langEn": "EN",
+    "langBn": "বাংলা"
+  },
+  "tabs": {
+    "document": "Contract document",
+    "playbook": "Playbook"
+  },
+  "documentPane": {
+    "title": "Contract PDF",
+    "extractedTextLabel": "Extracted text",
+    "emptyHeading": "Upload a text-based contract PDF",
+    "emptyDescription": "Drag and drop a PDF here, or choose a file from your device. Up to 10 MB and 80 pages.",
+    "chooseFileButton": "Choose PDF file",
+    "dropzoneAriaLabel": "Upload contract PDF",
+    "rulesNote": "Text-based PDFs only. Scanned or image-only PDFs without a text layer are not supported.",
+    "uploadingTitle": "Uploading and extracting text...",
+    "uploadingProgressLabel": "Upload progress",
+    "processingServer": "Reading PDF pages and normalizing text...",
+    "loadingExistingTitle": "Loading saved contract...",
+    "errorBadge": "Upload error",
+    "tryAgain": "Choose another file",
+    "uploadAnother": "Upload another PDF",
+    "pagesLabel": "Pages",
+    "shaLabel": "SHA-256",
+    "pageHeader": "Page",
+    "pageJumpLabel": "Jump to page",
+    "previousPage": "Previous",
+    "nextPage": "Next",
+    "emptyPageText": "No readable text on this page.",
+    "errorCodes": {
+      "not_pdf": "Invalid file format. Please upload a valid PDF file starting with %PDF-.",
+      "too_large": "File exceeds 10 MB. Please upload a PDF of 10 MB or less.",
+      "too_many_pages": "This PDF has more than 80 pages. Please upload a PDF with 80 pages or fewer.",
+      "encrypted": "This PDF is password-protected. Please remove the password and upload an unlocked PDF.",
+      "corrupt": "This PDF could not be parsed and may be corrupted.",
+      "scanned_unsupported": "This PDF has no usable text layer. OCR is not supported in this version.",
+      "unknown": "Could not process this upload. Please try again."
+    }
+  },
+  "playbookPane": {
+    "title": "Your 5-Preference Playbook",
+    "starterNote": "Starter defaults, not yet reviewed by a lawyer.",
+    "noDocumentNotice": "Upload a contract PDF first to save a playbook for that document.",
+    "loadingState": "Loading saved playbook...",
+    "savedBadge": "Saved",
+    "unsavedBadge": "Unsaved edits",
+    "defaultsBadge": "Defaults",
+    "saveButton": "Save playbook",
+    "savingButton": "Saving...",
+    "saveSuccess": "Playbook saved for this contract.",
+    "saveErrorSummary": "Please fix the highlighted fields and try again.",
+    "analyzeButton": "Analyze contract",
+    "analyzeNotImplemented": "Available in the next phase",
+    "fields": {
+      "liabilityCap": {
+        "title": "1. Liability cap",
+        "requireLabel": "Require a cap on your financial liability",
+        "requireHelp": "Protects you from unlimited financial claims if a dispute happens.",
+        "multipleLabel": "Maximum cap (multiple of contract fees, 0.5 to 10)",
+        "multipleHelp": "Limits your total liability to this multiple of the fees you receive."
+      },
+      "paymentTerms": {
+        "title": "2. Payment terms",
+        "maxDaysLabel": "Maximum days to get paid (1 to 120)",
+        "maxDaysHelp": "Caps how long a client can wait after invoicing before payment is overdue."
+      },
+      "ipOwnership": {
+        "title": "3. IP ownership",
+        "selectLabel": "When work ownership transfers to the client",
+        "selectHelp": "Prevents losing ownership rights before your invoice is paid in full.",
+        "options": {
+          "transfer_after_full_payment": "Transfer after full payment",
+          "transfer_on_delivery": "Transfer on delivery",
+          "license_only": "License only (you keep ownership)",
+          "no_requirement": "No specific IP requirement"
+        }
+      },
+      "termination": {
+        "title": "4. Termination",
+        "noticeLabel": "Minimum notice period (0 to 90 days)",
+        "noticeHelp": "Gives you advance notice before a client can end active work.",
+        "payWorkDoneLabel": "Require payment for work already done",
+        "payWorkDoneHelp": "Ensures completed milestones or hours are paid even if cancelled early."
+      },
+      "scopeChanges": {
+        "title": "5. Scope changes",
+        "writtenOrderLabel": "Require a written change order",
+        "writtenOrderHelp": "Stops unpaid extra work by requiring written approval before scope expands."
+      }
+    }
+  }
+}

@@ -1,3 +1,5 @@
+import type { PlaybookPreferences } from "@/lib/playbook/schema";
+
 export type Json =
   | string
   | number
@@ -31,6 +33,8 @@ export interface DocumentRow {
   user_id: string | null;
   title: string;
   file_name: string;
+  original_filename: string | null;
+  sha256: string | null;
   storage_path: string | null;
   mime_type: string;
   file_size_bytes: number | null;
@@ -46,8 +50,10 @@ export interface DocumentRow {
 export interface DocumentInsert {
   id?: string;
   user_id?: string | null;
-  title: string;
-  file_name: string;
+  title?: string;
+  file_name?: string;
+  original_filename?: string | null;
+  sha256?: string | null;
   storage_path?: string | null;
   mime_type?: string;
   file_size_bytes?: number | null;
@@ -58,14 +64,24 @@ export interface DocumentInsert {
   error_message?: string | null;
 }
 
+export interface DocumentPageRow {
+  id: string;
+  document_id: string;
+  page_number: number;
+  text: string;
+  char_count: number;
+  created_at: string;
+}
+
 export interface PlaybookRow {
   id: string;
   document_id: string;
-  liability_cap_preference: string;
-  payment_terms_max_days: number;
-  ip_ownership_preference: string;
-  termination_preference: string;
-  scope_changes_preference: string;
+  preferences: PlaybookPreferences;
+  liability_cap_preference: string | null;
+  payment_terms_max_days: number | null;
+  ip_ownership_preference: string | null;
+  termination_preference: string | null;
+  scope_changes_preference: string | null;
   created_at: string;
   updated_at: string;
 }
