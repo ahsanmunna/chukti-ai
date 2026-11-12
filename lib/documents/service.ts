@@ -92,15 +92,27 @@ export async function ingestUploadedPdf(params: {
 
   const supabase = getAdminClientOrThrow();
 
+  const contentType = "application/pdf";
+
   const { error: uploadError } = await supabase.storage
     .from(CONTRACTS_STORAGE_BUCKET)
     .upload(storagePath, params.bytes, {
-      contentType: "application/pdf",
+      contentType,
       upsert: false,
     });
 
   if (uploadError) {
-    console.error(`[documents] storage_upload_failed id=${documentId}`);
+    const statusCode =
+      "statusCode" in uploadError && uploadError.statusCode !== undefined
+        ? uploadError.statusCode
+        : undefined;
+    console.error(`[documents] storage_upload_failed id=${documentId}`, {
+      name: uploadError.name,
+      message: uploadError.message,
+      ...(statusCode !== undefined ? { statusCode } : {}),
+      bytes: params.bytes.byteLength,
+      contentType,
+    });
     throw new DocumentServiceError(
       "storage_error",
       "Failed to store the uploaded contract file.",
