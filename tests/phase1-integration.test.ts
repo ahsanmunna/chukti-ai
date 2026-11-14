@@ -339,47 +339,100 @@ describe("Phase 1 API integration (Supabase DB + Storage + RLS)", () => {
   });
 
   it("asserts the anon client CANNOT insert into documents, document_pages, playbooks, or upload to the contracts bucket", async () => {
-    const anon = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } },
-    );
+    const admin = createSupabaseAdminClient();
+    const realDocId = crypto.randomUUID();
 
-    // 1. Cannot insert into documents
-    const { error: docInsertErr } = await anon.from("documents").insert({
-      id: crypto.randomUUID(),
-      title: "anon-doc.pdf",
-      file_name: "anon-doc.pdf",
-      original_filename: "anon-doc.pdf",
+    const { error: realDocInsertErr } = await admin.from("documents").insert({
+      id: realDocId,
+      title: "real-test-doc.pdf",
+      file_name: "real-test-doc.pdf",
+      original_filename: "real-test-doc.pdf",
       sha256: "0".repeat(64),
-      storage_path: "anon/anon.pdf",
       mime_type: "application/pdf",
       file_size_bytes: 100,
       page_count: 1,
       status: "extracted",
     });
-    expect(docInsertErr).toBeTruthy();
+    expect(realDocInsertErr).toBeNull();
 
-    // 2. Cannot insert into document_pages
-    const { error: pageInsertErr } = await anon.from("document_pages").insert({
-      document_id: crypto.randomUUID(),
-      page_number: 1,
-      text: "anon text",
-      char_count: 9,
-    });
-    expect(pageInsertErr).toBeTruthy();
+    try {
+      const anon = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { autoRefreshToken: false, persistSession: false } },
+      );
 
-    // 3. Cannot insert into playbooks
-    const { error: playbookInsertErr } = await anon.from("playbooks").insert({
-      document_id: crypto.randomUUID(),
-      preferences: DEFAULT_PLAYBOOK,
-    });
-    expect(playbookInsertErr).toBeTruthy();
+      // 1. Cannot insert into documents
+      const { error: docInsertErr } = await anon.from("documents").insert({
+        id: crypto.randomUUID(),
+        title: "anon-doc.pdf",
+        file_name: "anon-doc.pdf",
+        original_filename: "anon-doc.pdf",
+        sha256: "0".repeat(64),
+        storage_path: "anon/anon.pdf",
+        mime_type: "application/pdf",
+        file_size_bytes: 100,
+        page_count: 1,
+        status: "extracted",
+      });
+      console.info("anon insert documents:", {
+        code: docInsertErr?.code,
+        message: docInsertErr?.message,
+      });
+      expect(docInsertErr).toBeTruthy();
+      expect(
+        docInsertErr?.code === "42501" || /row-level security/i.test(docInsertErr?.message ?? ""),
+      ).toBe(true);
 
-    // 4. Cannot upload to contracts storage bucket
-    const { error: storageUploadErr } = await anon.storage
-      .from(CONTRACTS_STORAGE_BUCKET)
-      .upload("anon/test.pdf", new Uint8Array([1, 2, 3]), { contentType: "application/pdf" });
-    expect(storageUploadErr).toBeTruthy();
+      // 2. Cannot insert into document_pages for that real document id
+      const { error: pageInsertErr } = await anon.from("document_pages").insert({
+        document_id: realDocId,
+        page_number: 1,
+        text: "anon text",
+        char_count: 9,
+      });
+      console.info("anon insert document_pages:", {
+        code: pageInsertErr?.code,
+        message: pageInsertErr?.message,
+      });
+      expect(pageInsertErr).toBeTruthy();
+      expect(
+        pageInsertErr?.code === "42501" || /row-level security/i.test(pageInsertErr?.message ?? ""),
+      ).toBe(true);
+
+      // 3. Cannot insert into playbooks for that real document id
+      const { error: playbookInsertErr } = await anon.from("playbooks").insert({
+        document_id: realDocId,
+        preferences: DEFAULT_PLAYBOOK,
+      });
+      console.info("anon insert playbooks:", {
+        code: playbookInsertErr?.code,
+        message: playbookInsertErr?.message,
+      });
+      expect(playbookInsertErr).toBeTruthy();
+      expect(
+        playbookInsertErr?.code === "42501" ||
+          /row-level security/i.test(playbookInsertErr?.message ?? ""),
+      ).toBe(true);
+
+      // 4. Cannot upload to contracts storage bucket
+      const { error: storageUploadErr } = await anon.storage
+        .from(CONTRACTS_STORAGE_BUCKET)
+        .upload("anon/test.pdf", new Uint8Array([1, 2, 3]), { contentType: "application/pdf" });
+      const storageStatusCode = (storageUploadErr as { statusCode?: string | number } | null)
+        ?.statusCode;
+      console.info("anon storage upload:", {
+        statusCode: storageStatusCode,
+        message: storageUploadErr?.message,
+      });
+      expect(storageUploadErr).toBeTruthy();
+      const storageDenied =
+        /row-level security|unauthorized|not authorized/i.test(storageUploadErr?.message ?? "") ||
+        storageStatusCode === 403 ||
+        storageStatusCode === "403";
+      expect(storageDenied).toBe(true);
+    } finally {
+      await admin.from("documents").delete().eq("id", realDocId);
+    }
   });
 });

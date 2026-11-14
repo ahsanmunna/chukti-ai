@@ -14,7 +14,11 @@ import {
   type DocumentPaneStatus,
   type DocumentUploadError,
 } from "./DocumentPane";
-import { PlaybookPane, type PlaybookSaveStatus } from "./PlaybookPane";
+import {
+  PlaybookPane,
+  type PlaybookErrorKind,
+  type PlaybookSaveStatus,
+} from "./PlaybookPane";
 
 interface DocumentResponsePayload {
   document: DocumentMetadataDto;
@@ -57,7 +61,7 @@ export function ContractWorkspace() {
   const [hasServerSaved, setHasServerSaved] = useState(false);
   const [isPlaybookDirty, setIsPlaybookDirty] = useState(false);
   const [playbookFieldErrors, setPlaybookFieldErrors] = useState<Record<string, string>>({});
-  const [playbookErrorMessage, setPlaybookErrorMessage] = useState<string | null>(null);
+  const [playbookErrorKind, setPlaybookErrorKind] = useState<PlaybookErrorKind>(null);
 
   const messages = getMessages(locale);
 
@@ -69,7 +73,7 @@ export function ContractWorkspace() {
     setPlaybookLoading(true);
     setPlaybookLoadError(false);
     setPlaybookFieldErrors({});
-    setPlaybookErrorMessage(null);
+    setPlaybookErrorKind(null);
     try {
       const response = await fetch(`/api/documents/${documentId}/playbook`, {
         method: "GET",
@@ -244,7 +248,7 @@ export function ContractWorkspace() {
     setIsPlaybookDirty(false);
     setPlaybookSaveStatus("idle");
     setPlaybookFieldErrors({});
-    setPlaybookErrorMessage(null);
+    setPlaybookErrorKind(null);
 
     const nextUrl = new URL(window.location.href);
     nextUrl.searchParams.delete("documentId");
@@ -256,7 +260,7 @@ export function ContractWorkspace() {
     setIsPlaybookDirty(true);
     setPlaybookSaveStatus("idle");
     setPlaybookFieldErrors({});
-    setPlaybookErrorMessage(null);
+    setPlaybookErrorKind(null);
   };
 
   const handleSavePlaybook = async () => {
@@ -269,13 +273,13 @@ export function ContractWorkspace() {
     if (!clientCheck.success) {
       setPlaybookFieldErrors(formatPlaybookFieldErrors(clientCheck.error));
       setPlaybookSaveStatus("error");
-      setPlaybookErrorMessage(messages.playbookPane.saveErrorSummary);
+      setPlaybookErrorKind("validation");
       return;
     }
 
     setPlaybookSaveStatus("saving");
     setPlaybookFieldErrors({});
-    setPlaybookErrorMessage(null);
+    setPlaybookErrorKind(null);
 
     try {
       const response = await fetch(`/api/documents/${documentId}/playbook`, {
@@ -290,7 +294,10 @@ export function ContractWorkspace() {
       if (!response.ok) {
         setPlaybookSaveStatus("error");
         setPlaybookFieldErrors(json.error?.fields ?? {});
-        setPlaybookErrorMessage(json.error?.message ?? messages.playbookPane.saveErrorSummary);
+        const hasFieldErrors = Boolean(
+          json.error?.fields && Object.keys(json.error.fields).length > 0,
+        );
+        setPlaybookErrorKind(hasFieldErrors ? "validation" : "failed");
         return;
       }
 
@@ -298,9 +305,11 @@ export function ContractWorkspace() {
       setHasServerSaved(true);
       setIsPlaybookDirty(false);
       setPlaybookSaveStatus("saved");
+      setPlaybookErrorKind(null);
     } catch {
       setPlaybookSaveStatus("error");
-      setPlaybookErrorMessage(messages.playbookPane.saveErrorSummary);
+      setPlaybookFieldErrors({});
+      setPlaybookErrorKind("failed");
     }
   };
 
@@ -449,7 +458,7 @@ export function ContractWorkspace() {
               hasServerSaved={hasServerSaved}
               isDirty={isPlaybookDirty}
               fieldErrors={playbookFieldErrors}
-              serverErrorMessage={playbookErrorMessage}
+              playbookErrorKind={playbookErrorKind}
               onChange={handlePlaybookChange}
               onSave={() => void handleSavePlaybook()}
             />

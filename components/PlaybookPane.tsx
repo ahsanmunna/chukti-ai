@@ -9,6 +9,7 @@ import {
 import { getPlaybookFieldErrorMessage } from "@/lib/ui/messages";
 
 export type PlaybookSaveStatus = "idle" | "saving" | "saved" | "error";
+export type PlaybookErrorKind = "validation" | "failed" | null;
 
 interface PlaybookPaneProps {
   messages: Messages["playbookPane"];
@@ -22,7 +23,7 @@ interface PlaybookPaneProps {
   hasServerSaved: boolean;
   isDirty: boolean;
   fieldErrors: Record<string, string>;
-  serverErrorMessage: string | null;
+  playbookErrorKind: PlaybookErrorKind;
   onChange: (next: PlaybookPreferences) => void;
   onSave: () => void;
 }
@@ -39,7 +40,7 @@ export function PlaybookPane({
   hasServerSaved,
   isDirty,
   fieldErrors,
-  serverErrorMessage,
+  playbookErrorKind,
   onChange,
   onSave,
 }: PlaybookPaneProps) {
@@ -484,7 +485,9 @@ export function PlaybookPane({
                 role="alert"
                 className="rounded-md border border-border-danger bg-surface-danger px-3 py-2 text-xs font-medium text-text-danger"
               >
-                {serverErrorMessage || messages.saveErrorSummary}
+                {playbookErrorKind === "failed"
+                  ? messages.saveFailed
+                  : messages.saveErrorSummary}
               </div>
             ) : null}
 

@@ -72,6 +72,7 @@
     "savingButton": "Saving...",
     "saveSuccess": "Playbook saved for this contract.",
     "saveErrorSummary": "Please fix the highlighted fields and try again.",
+    "saveFailed": "Could not save the playbook. Please try again.",
     "analyzeButton": "Analyze contract",
     "analyzeNotImplemented": "Available in the next phase",
     "fieldErrors": {

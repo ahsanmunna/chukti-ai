@@ -247,9 +247,8 @@ export async function extractPdfPages(params: {
   let pdf: Awaited<ReturnType<typeof getDocumentProxy>> | null = null;
   try {
     try {
-      // Note: isEvalSupported was removed upstream in PDF.js 4.2.67+ (unpdf bundles pdfjs 6.4.299)
-      // because eval / dynamic Function generation was completely eliminated from PDF.js (CVE-2024-4367).
-      // DocumentInitParameters in the installed unpdf types rejects isEvalSupported.
+      // Note: unpdf bundles pdfjs 6.4.299. The installed type definitions
+      // (DocumentInitParameters) do not accept isEvalSupported.
       pdf = await getDocumentProxy(pdfBuffer, {
         useSystemFonts: false,
         verbosity: 0,
