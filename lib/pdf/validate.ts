@@ -121,15 +121,27 @@ export function sanitizeOriginalFilename(rawName: string | null | undefined): st
   const strippedPath = (rawName ?? "")
     .split(/[\\/]/)
     .pop() ?? "";
-  const withoutControls = Array.from(strippedPath)
+  const sanitized = Array.from(strippedPath)
     .filter((ch) => {
-      const code = ch.charCodeAt(0);
-      return code >= 32 && code !== 127;
+      const code = ch.codePointAt(0) ?? 0;
+      // Strip ASCII control characters and DEL
+      if (code < 32 || code === 127) {
+        return false;
+      }
+      // Strip bidi controls: U+202A-U+202E, U+2066-U+2069
+      if ((code >= 0x202a && code <= 0x202e) || (code >= 0x2066 && code <= 0x2069)) {
+        return false;
+      }
+      // Strip zero-width chars: U+200B-U+200D, U+FEFF
+      if ((code >= 0x200b && code <= 0x200d) || code === 0xfeff) {
+        return false;
+      }
+      return true;
     })
     .join("")
     .trim();
-  if (!withoutControls) {
+  if (!sanitized) {
     return "contract.pdf";
   }
-  return withoutControls.slice(0, 255);
+  return sanitized.slice(0, 255);
 }

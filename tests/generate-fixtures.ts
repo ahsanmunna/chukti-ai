@@ -8,6 +8,10 @@ const FIXTURES_DIR = path.resolve(
   "fixtures",
 );
 
+const FIXED_DATE = new Date("2025-01-01T00:00:00.000Z");
+const FIXED_PRODUCER = "Chukti AI Test Fixture Generator";
+const FIXED_CREATOR = "Chukti AI";
+
 const SYNTHETIC_PAGES: ReadonlyArray<ReadonlyArray<string>> = [
   [
     "SYNTHETIC MASTER SERVICES AGREEMENT (TEST FIXTURE)",
@@ -40,11 +44,38 @@ export interface GeneratedFixturePaths {
 
 export async function generateSyntheticFixtures(
   targetDir = FIXTURES_DIR,
+  force = false,
 ): Promise<GeneratedFixturePaths> {
   fs.mkdirSync(targetDir, { recursive: true });
 
-  // 1. 3-page synthetic text-based contract PDF
+  const textPdfPath = path.join(targetDir, "fixture-synthetic-text.pdf");
+  const noTextPdfPath = path.join(targetDir, "fixture-synthetic-no-text.pdf");
+  const renamedTxtPath = path.join(targetDir, "fixture-synthetic-renamed-txt.pdf");
+  const emptyPdfPath = path.join(targetDir, "fixture-synthetic-empty.pdf");
+
+  // When committed fixtures exist and force is false, do not rewrite them during test runs.
+  if (
+    !force &&
+    fs.existsSync(textPdfPath) &&
+    fs.existsSync(noTextPdfPath) &&
+    fs.existsSync(renamedTxtPath) &&
+    fs.existsSync(emptyPdfPath)
+  ) {
+    return {
+      textPdf: textPdfPath,
+      noTextPdf: noTextPdfPath,
+      renamedTxtPdf: renamedTxtPath,
+      emptyPdf: emptyPdfPath,
+    };
+  }
+
+  // 1. 3-page synthetic text-based contract PDF (deterministic metadata)
   const textDoc = await PDFDocument.create();
+  textDoc.setProducer(FIXED_PRODUCER);
+  textDoc.setCreator(FIXED_CREATOR);
+  textDoc.setCreationDate(FIXED_DATE);
+  textDoc.setModificationDate(FIXED_DATE);
+
   const font = await textDoc.embedFont(StandardFonts.Helvetica);
 
   for (const lines of SYNTHETIC_PAGES) {
@@ -64,11 +95,15 @@ export async function generateSyntheticFixtures(
   }
 
   const textPdfBytes = await textDoc.save();
-  const textPdfPath = path.join(targetDir, "fixture-synthetic-text.pdf");
   fs.writeFileSync(textPdfPath, textPdfBytes);
 
-  // 2. 3-page synthetic shapes-only PDF (no text layer)
+  // 2. 3-page synthetic shapes-only PDF (no text layer, deterministic metadata)
   const noTextDoc = await PDFDocument.create();
+  noTextDoc.setProducer(FIXED_PRODUCER);
+  noTextDoc.setCreator(FIXED_CREATOR);
+  noTextDoc.setCreationDate(FIXED_DATE);
+  noTextDoc.setModificationDate(FIXED_DATE);
+
   for (let i = 0; i < 3; i++) {
     const page = noTextDoc.addPage([612, 792]);
     page.drawRectangle({
@@ -88,11 +123,9 @@ export async function generateSyntheticFixtures(
   }
 
   const noTextPdfBytes = await noTextDoc.save();
-  const noTextPdfPath = path.join(targetDir, "fixture-synthetic-no-text.pdf");
   fs.writeFileSync(noTextPdfPath, noTextPdfBytes);
 
   // 3. Plain .txt file renamed to .pdf
-  const renamedTxtPath = path.join(targetDir, "fixture-synthetic-renamed-txt.pdf");
   fs.writeFileSync(
     renamedTxtPath,
     "This is a plain text file renamed with a .pdf extension for synthetic negative testing.\n",
@@ -100,7 +133,6 @@ export async function generateSyntheticFixtures(
   );
 
   // 4. Empty 0-byte file
-  const emptyPdfPath = path.join(targetDir, "fixture-synthetic-empty.pdf");
   fs.writeFileSync(emptyPdfPath, Buffer.alloc(0));
 
   return {
@@ -118,7 +150,7 @@ const isExecutedDirectly =
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isExecutedDirectly) {
-  generateSyntheticFixtures()
+  generateSyntheticFixtures(FIXTURES_DIR, true)
     .then((paths) => {
       console.log("Generated synthetic Phase 1 fixtures:", Object.values(paths).map((p) => path.basename(p)));
     })

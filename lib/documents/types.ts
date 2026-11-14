@@ -6,7 +6,6 @@ export interface DocumentMetadataDto {
   sha256: string;
   page_count: number;
   status: string;
-  storage_path: string;
   created_at: string;
 }
 

@@ -52,6 +52,7 @@ export function ContractWorkspace() {
 
   const [playbook, setPlaybook] = useState<PlaybookPreferences>(() => cloneDefaultPlaybook());
   const [playbookLoading, setPlaybookLoading] = useState(false);
+  const [playbookLoadError, setPlaybookLoadError] = useState(false);
   const [playbookSaveStatus, setPlaybookSaveStatus] = useState<PlaybookSaveStatus>("idle");
   const [hasServerSaved, setHasServerSaved] = useState(false);
   const [isPlaybookDirty, setIsPlaybookDirty] = useState(false);
@@ -66,6 +67,7 @@ export function ContractWorkspace() {
 
   const loadPlaybookForDocument = async (documentId: string) => {
     setPlaybookLoading(true);
+    setPlaybookLoadError(false);
     setPlaybookFieldErrors({});
     setPlaybookErrorMessage(null);
     try {
@@ -73,6 +75,7 @@ export function ContractWorkspace() {
         method: "GET",
       });
       if (!response.ok) {
+        setPlaybookLoadError(true);
         return;
       }
       const data = (await response.json()) as PlaybookResponsePayload;
@@ -80,6 +83,9 @@ export function ContractWorkspace() {
       setHasServerSaved(data.saved);
       setPlaybookSaveStatus(data.saved ? "saved" : "idle");
       setIsPlaybookDirty(false);
+      setPlaybookLoadError(false);
+    } catch {
+      setPlaybookLoadError(true);
     } finally {
       setPlaybookLoading(false);
     }
@@ -107,7 +113,6 @@ export function ContractWorkspace() {
           setDocStatus("error");
           setDocError({
             code: json.error?.code ?? "unknown",
-            message: json.error?.message ?? "Could not load document.",
           });
           return;
         }
@@ -119,7 +124,6 @@ export function ContractWorkspace() {
           setDocStatus("error");
           setDocError({
             code: "unknown",
-            message: "Could not load document.",
           });
         }
       }
@@ -133,6 +137,21 @@ export function ContractWorkspace() {
   }, []);
 
   const handleFileSelected = (file: File) => {
+    // Client pre-check before sending: reject oversized or non-PDF files without sending.
+    const isPdfExt = file.name.trim().toLowerCase().endsWith(".pdf");
+    const isPdfMime = file.type === "application/pdf";
+    if (!isPdfExt && !isPdfMime) {
+      setDocStatus("error");
+      setDocError({ code: "not_pdf" });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setDocStatus("error");
+      setDocError({ code: "too_large" });
+      return;
+    }
+
     setDocStatus("uploading");
     setDocError(null);
     setUploadProgress(0);
@@ -144,6 +163,21 @@ export function ContractWorkspace() {
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/documents");
+    xhr.timeout = 60000;
+
+    xhr.ontimeout = () => {
+      setDocStatus("error");
+      setDocError({
+        code: "timeout",
+      });
+    };
+
+    xhr.onabort = () => {
+      setDocStatus("error");
+      setDocError({
+        code: "network_error",
+      });
+    };
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && event.total > 0) {
@@ -185,15 +219,13 @@ export function ContractWorkspace() {
       setDocStatus("error");
       setDocError({
         code: parsed?.error?.code ?? "unknown",
-        message: parsed?.error?.message ?? "Upload failed.",
       });
     };
 
     xhr.onerror = () => {
       setDocStatus("error");
       setDocError({
-        code: "unknown",
-        message: "Network error during upload. Please try again.",
+        code: "network_error",
       });
     };
 
@@ -207,6 +239,7 @@ export function ContractWorkspace() {
     setUploadProgress(0);
     setUploadingFilename("");
     setPlaybook(cloneDefaultPlaybook());
+    setPlaybookLoadError(false);
     setHasServerSaved(false);
     setIsPlaybookDirty(false);
     setPlaybookSaveStatus("idle");
@@ -294,9 +327,6 @@ export function ContractWorkspace() {
             <span className="text-xs font-medium text-text-secondary">
               {messages.header.subtitle}
             </span>
-            <span className="inline-flex items-center rounded border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-secondary">
-              {messages.header.phaseLabel}
-            </span>
           </div>
 
           <div
@@ -336,7 +366,7 @@ export function ContractWorkspace() {
         {/* Mobile tabs (<768px) */}
         <div
           role="tablist"
-          aria-label={messages.header.phaseLabel}
+          aria-label={messages.tabs.groupLabel}
           className="mb-4 grid grid-cols-2 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1 md:hidden"
         >
           <button
@@ -405,9 +435,16 @@ export function ContractWorkspace() {
           >
             <PlaybookPane
               messages={messages.playbookPane}
+              locale={locale}
               documentId={documentData?.document.id ?? null}
               playbook={playbook}
               loading={playbookLoading}
+              loadError={playbookLoadError}
+              onRetryLoad={() => {
+                if (documentData?.document.id) {
+                  void loadPlaybookForDocument(documentData.document.id);
+                }
+              }}
               saveStatus={playbookSaveStatus}
               hasServerSaved={hasServerSaved}
               isDirty={isPlaybookDirty}

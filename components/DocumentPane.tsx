@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import type { DocumentMetadataDto, DocumentPageDto } from "@/lib/documents/types";
-import type { Messages } from "@/lib/i18n";
+import type { Locale, Messages } from "@/lib/i18n";
+import { getUploadErrorMessage } from "@/lib/ui/messages";
 
 export type DocumentPaneStatus =
   | "idle"
@@ -13,12 +14,12 @@ export type DocumentPaneStatus =
 
 export interface DocumentUploadError {
   code: string;
-  message: string;
+  message?: string;
 }
 
 interface DocumentPaneProps {
   messages: Messages["documentPane"];
-  locale: "en" | "bn";
+  locale: Locale;
   status: DocumentPaneStatus;
   uploadProgress: number;
   uploadStage: "uploading" | "processing";
@@ -30,21 +31,6 @@ interface DocumentPaneProps {
   } | null;
   onFileSelected: (file: File) => void;
   onReset: () => void;
-}
-
-function getLocalizedErrorMessage(
-  error: DocumentUploadError,
-  messages: Messages["documentPane"],
-  locale: "en" | "bn",
-): string {
-  const knownCodes = messages.errorCodes as Record<string, string>;
-  if (locale === "bn" && error.code in knownCodes) {
-    return knownCodes[error.code];
-  }
-  if (error.message && error.message.trim().length > 0) {
-    return error.message;
-  }
-  return knownCodes[error.code] ?? knownCodes.unknown;
 }
 
 export function DocumentPane({
@@ -289,10 +275,9 @@ export function DocumentPane({
                 <span className="inline-flex items-center rounded border border-border-danger bg-surface-panel px-2 py-0.5 text-xs font-semibold text-text-danger">
                   {messages.errorBadge}
                 </span>
-                <code className="text-xs font-medium text-text-danger">{error.code}</code>
               </div>
               <p className="mt-2 text-sm text-text-danger">
-                {getLocalizedErrorMessage(error, messages, locale)}
+                {getUploadErrorMessage(error.code, locale)}
               </p>
             </div>
           </div>
@@ -354,6 +339,7 @@ export function DocumentPane({
           </button>
 
           <p className="mt-4 max-w-md text-xs text-text-muted">{messages.rulesNote}</p>
+          <p className="mt-2 max-w-md text-xs text-text-secondary">{messages.demoNotice}</p>
         </div>
       ) : null}
     </section>

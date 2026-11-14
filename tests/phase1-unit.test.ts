@@ -161,10 +161,30 @@ describe("PDF upload guards", () => {
     expect(isWithinPdfSizeLimit(new Uint8Array(MAX_PDF_BYTES + 1))).toBe(false);
   });
 
-  it("sanitizes original filename for metadata display only", () => {
+  it("sanitizes original filename with path stripping, bidi and zero-width removal", () => {
+    // Path stripping (POSIX and Windows)
     expect(sanitizeOriginalFilename("../../secret/msa.pdf")).toBe("msa.pdf");
     expect(sanitizeOriginalFilename("C:\\fakepath\\contract\u0000.pdf")).toBe("contract.pdf");
+    expect(sanitizeOriginalFilename("/var/log/contract.pdf")).toBe("contract.pdf");
+
+    // Bidi controls removal: U+202A-U+202E and U+2066-U+2069
+    expect(sanitizeOriginalFilename("contract\u202Eexe.pdf")).toBe("contractexe.pdf");
+    expect(sanitizeOriginalFilename("doc\u202A\u202B\u202C\u202D\u202E.pdf")).toBe("doc.pdf");
+    expect(sanitizeOriginalFilename("doc\u2066\u2067\u2068\u2069.pdf")).toBe("doc.pdf");
+
+    // Zero-width characters removal: U+200B-U+200D and U+FEFF
+    expect(sanitizeOriginalFilename("\uFEFFc\u200Bo\u200Cnt\u200Dract.pdf")).toBe("contract.pdf");
+
+    // Combined path stripping, bidi controls, and zero-width chars
+    expect(
+      sanitizeOriginalFilename("../../uploads/\u202E\uFEFFcontract\u200B.pdf"),
+    ).toBe("contract.pdf");
+
+    // Fallbacks
     expect(sanitizeOriginalFilename("   ")).toBe("contract.pdf");
+    expect(sanitizeOriginalFilename("\u202E\u200B\uFEFF")).toBe("contract.pdf");
+    expect(sanitizeOriginalFilename(null)).toBe("contract.pdf");
+    expect(sanitizeOriginalFilename(undefined)).toBe("contract.pdf");
   });
 });
 

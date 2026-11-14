@@ -78,10 +78,20 @@ describe("Phase 1 API integration (Supabase DB + Storage + RLS)", () => {
     expect(uploadJson.document.sha256).toBe(expectedSha256);
     expect(uploadJson.document.page_count).toBe(3);
     expect(uploadJson.document.status).toBe("extracted");
-    expect(uploadJson.document.storage_path).not.toContain("fixture-synthetic-text");
+    expect(uploadJson.document.storage_path).toBeUndefined();
 
     const docId: string = uploadJson.document.id;
-    const storagePath: string = uploadJson.document.storage_path;
+
+    // Verify storage_path is stored in the database but never returned in the API DTO
+    const admin = createSupabaseAdminClient();
+    const { data: dbDoc } = await admin
+      .from("documents")
+      .select("storage_path")
+      .eq("id", docId)
+      .single();
+    const storagePath = dbDoc?.storage_path as string;
+    expect(storagePath).toBeTruthy();
+    expect(storagePath).not.toContain("fixture-synthetic-text");
     createdDocs.push({ id: docId, storagePath });
 
     // Read document + per-page text back through GET /api/documents/[id]
@@ -94,6 +104,7 @@ describe("Phase 1 API integration (Supabase DB + Storage + RLS)", () => {
     expect(getRes.status).toBe(200);
     expect(getJson.document.id).toBe(docId);
     expect(getJson.document.page_count).toBe(3);
+    expect(getJson.document.storage_path).toBeUndefined();
     expect(getJson.pages).toHaveLength(3);
     for (let i = 0; i < 3; i++) {
       expect(getJson.pages[i].page_number).toBe(i + 1);
@@ -102,7 +113,6 @@ describe("Phase 1 API integration (Supabase DB + Storage + RLS)", () => {
     expect(getJson.pages[0].text).toContain("SYNTHETIC MASTER SERVICES AGREEMENT");
 
     // Verify private Storage object exists for admin client and is denied to anon client
-    const admin = createSupabaseAdminClient();
     const { data: downloaded, error: downloadError } = await admin.storage
       .from(CONTRACTS_STORAGE_BUCKET)
       .download(storagePath);
@@ -138,7 +148,15 @@ describe("Phase 1 API integration (Supabase DB + Storage + RLS)", () => {
     expect(uploadRes.status).toBe(201);
     const uploaded = await uploadRes.json();
     const docId: string = uploaded.document.id;
-    createdDocs.push({ id: docId, storagePath: uploaded.document.storage_path });
+    expect(uploaded.document.storage_path).toBeUndefined();
+
+    const admin = createSupabaseAdminClient();
+    const { data: dbDoc2 } = await admin
+      .from("documents")
+      .select("storage_path")
+      .eq("id", docId)
+      .single();
+    createdDocs.push({ id: docId, storagePath: dbDoc2?.storage_path as string });
 
     // Initial GET returns starter defaults with saved: false
     const initialGet = await getPlaybook(
@@ -255,5 +273,113 @@ describe("Phase 1 API integration (Supabase DB + Storage + RLS)", () => {
     );
     expect(missingPlaybookRes.status).toBe(404);
     expect((await missingPlaybookRes.json()).error.code).toBe("not_found");
+  });
+
+  it("rejects oversized Content-Length with 413 without reading the body", async () => {
+    let formDataCalled = false;
+    const oversizedLength = String(10 * 1024 * 1024 + 1024 * 1024 + 500);
+    const req = new NextRequest("http://localhost:3000/api/documents", {
+      method: "POST",
+      headers: {
+        "content-length": oversizedLength,
+        "content-type": "multipart/form-data; boundary=---boundary",
+      },
+      body: "dummy-body-content",
+    });
+
+    const originalFormData = req.formData.bind(req);
+    req.formData = async () => {
+      formDataCalled = true;
+      return originalFormData();
+    };
+
+    const res = await uploadDocument(req);
+    expect(res.status).toBe(413);
+    const json = await res.json();
+    expect(json.error?.code).toBe("too_large");
+    expect(formDataCalled).toBe(false);
+    expect(req.bodyUsed).toBe(false);
+  });
+
+  it("rejects file.size over the limit with 413 before reading bytes", async () => {
+    // File size exceeds MAX_PDF_BYTES (10 MiB) but total payload is under MAX_PDF_BYTES + 1 MiB
+    const largeBytes = new Uint8Array(10 * 1024 * 1024 + 1);
+    const file = new File([largeBytes], "oversized.pdf", {
+      type: "application/pdf",
+    });
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const req = new NextRequest("http://localhost:3000/api/documents", {
+      method: "POST",
+      body: formData,
+    });
+
+    let arrayBufferCalled = false;
+    const originalFormData = req.formData.bind(req);
+    req.formData = async () => {
+      const fd = await originalFormData();
+      const fileEntry = fd.get("file") as File;
+      if (fileEntry) {
+        const origArrayBuffer = fileEntry.arrayBuffer.bind(fileEntry);
+        fileEntry.arrayBuffer = async () => {
+          arrayBufferCalled = true;
+          return origArrayBuffer();
+        };
+      }
+      return fd;
+    };
+
+    const res = await uploadDocument(req);
+    expect(res.status).toBe(413);
+    const json = await res.json();
+    expect(json.error?.code).toBe("too_large");
+    expect(arrayBufferCalled).toBe(false);
+  });
+
+  it("asserts the anon client CANNOT insert into documents, document_pages, playbooks, or upload to the contracts bucket", async () => {
+    const anon = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
+
+    // 1. Cannot insert into documents
+    const { error: docInsertErr } = await anon.from("documents").insert({
+      id: crypto.randomUUID(),
+      title: "anon-doc.pdf",
+      file_name: "anon-doc.pdf",
+      original_filename: "anon-doc.pdf",
+      sha256: "0".repeat(64),
+      storage_path: "anon/anon.pdf",
+      mime_type: "application/pdf",
+      file_size_bytes: 100,
+      page_count: 1,
+      status: "extracted",
+    });
+    expect(docInsertErr).toBeTruthy();
+
+    // 2. Cannot insert into document_pages
+    const { error: pageInsertErr } = await anon.from("document_pages").insert({
+      document_id: crypto.randomUUID(),
+      page_number: 1,
+      text: "anon text",
+      char_count: 9,
+    });
+    expect(pageInsertErr).toBeTruthy();
+
+    // 3. Cannot insert into playbooks
+    const { error: playbookInsertErr } = await anon.from("playbooks").insert({
+      document_id: crypto.randomUUID(),
+      preferences: DEFAULT_PLAYBOOK,
+    });
+    expect(playbookInsertErr).toBeTruthy();
+
+    // 4. Cannot upload to contracts storage bucket
+    const { error: storageUploadErr } = await anon.storage
+      .from(CONTRACTS_STORAGE_BUCKET)
+      .upload("anon/test.pdf", new Uint8Array([1, 2, 3]), { contentType: "application/pdf" });
+    expect(storageUploadErr).toBeTruthy();
   });
 });

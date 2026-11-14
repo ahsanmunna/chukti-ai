@@ -6,12 +6,12 @@
   "header": {
     "brand": "Chukti AI",
     "subtitle": "Contract protection copilot",
-    "phaseLabel": "Phase 1: Document & Playbook",
     "languageLabel": "Language",
     "langEn": "EN",
     "langBn": "বাংলা"
   },
   "tabs": {
+    "groupLabel": "Workspace sections",
     "document": "Contract document",
     "playbook": "Playbook"
   },
@@ -23,6 +23,7 @@
     "chooseFileButton": "Choose PDF file",
     "dropzoneAriaLabel": "Upload contract PDF",
     "rulesNote": "Text-based PDFs only. Scanned or image-only PDFs without a text layer are not supported.",
+    "demoNotice": "Demo build: upload only public templates or contracts you are allowed to share. Do not upload confidential contracts.",
     "uploadingTitle": "Uploading and extracting text...",
     "uploadingProgressLabel": "Upload progress",
     "processingServer": "Reading PDF pages and normalizing text...",
@@ -38,13 +39,23 @@
     "nextPage": "Next",
     "emptyPageText": "No readable text on this page.",
     "errorCodes": {
-      "not_pdf": "Invalid file format. Please upload a valid PDF file starting with %PDF-.",
-      "too_large": "File exceeds 10 MB. Please upload a PDF of 10 MB or less.",
-      "too_many_pages": "This PDF has more than 80 pages. Please upload a PDF with 80 pages or fewer.",
-      "encrypted": "This PDF is password-protected. Please remove the password and upload an unlocked PDF.",
-      "corrupt": "This PDF could not be parsed and may be corrupted.",
-      "scanned_unsupported": "This PDF has no usable text layer. OCR is not supported in this version.",
-      "unknown": "Could not process this upload. Please try again."
+      "not_pdf": "This file isn't a PDF. Please upload a PDF contract.",
+      "too_large": "This file is larger than 10 MB. Please upload a smaller PDF.",
+      "too_many_pages": "This PDF has more than 80 pages. Please upload a shorter document.",
+      "encrypted": "This PDF is password-protected. Remove the password and upload it again.",
+      "corrupt": "We couldn't read this PDF. The file may be damaged.",
+      "scanned_unsupported": "This PDF looks like a scan or an image, so there is no text to read. Only text-based PDFs are supported for now.",
+      "invalid_request": "Something went wrong on our side. Please try again.",
+      "missing_file": "Something went wrong on our side. Please try again.",
+      "storage_error": "Something went wrong on our side. Please try again.",
+      "database_error": "Something went wrong on our side. Please try again.",
+      "service_unavailable": "Something went wrong on our side. Please try again.",
+      "internal_error": "Something went wrong on our side. Please try again.",
+      "not_found": "Something went wrong on our side. Please try again.",
+      "invalid_id": "Something went wrong on our side. Please try again.",
+      "network_error": "Upload failed. Check your connection and try again.",
+      "timeout": "The upload took too long. Please try again.",
+      "unknown": "Something went wrong on our side. Please try again."
     }
   },
   "playbookPane": {
@@ -52,6 +63,8 @@
     "starterNote": "Starter defaults, not yet reviewed by a lawyer.",
     "noDocumentNotice": "Upload a contract PDF first to save a playbook for that document.",
     "loadingState": "Loading saved playbook...",
+    "loadErrorTitle": "Could not load saved playbook.",
+    "retryButton": "Retry",
     "savedBadge": "Saved",
     "unsavedBadge": "Unsaved edits",
     "defaultsBadge": "Defaults",
@@ -61,6 +74,13 @@
     "saveErrorSummary": "Please fix the highlighted fields and try again.",
     "analyzeButton": "Analyze contract",
     "analyzeNotImplemented": "Available in the next phase",
+    "fieldErrors": {
+      "liability_cap.max_multiple_of_fees": "Enter a number from 0.5 to 10.",
+      "payment_terms.max_days_to_pay": "Enter a whole number from 1 to 120.",
+      "termination.min_notice_days": "Enter a whole number from 0 to 90.",
+      "ip_ownership": "Choose one of the options.",
+      "fallback": "Check this value."
+    },
     "fields": {
       "liabilityCap": {
         "title": "1. Liability cap",

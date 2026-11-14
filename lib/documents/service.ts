@@ -136,7 +136,7 @@ export async function ingestUploadedPdf(params: {
         page_count: extracted.pageCount,
         status: "extracted",
       })
-      .select("id, original_filename, sha256, page_count, status, storage_path, created_at")
+      .select("id, original_filename, sha256, page_count, status, created_at")
       .single();
 
     if (docError || !docRow) {
@@ -180,7 +180,6 @@ export async function ingestUploadedPdf(params: {
         sha256: docRow.sha256 ?? sha256,
         page_count: docRow.page_count ?? extracted.pageCount,
         status: docRow.status,
-        storage_path: docRow.storage_path ?? storagePath,
         created_at: docRow.created_at,
       },
       pages: extracted.pages.map((page) => ({
@@ -206,7 +205,7 @@ export async function getDocumentWithPages(
   const { data: docRow, error: docError } = await supabase
     .from("documents")
     .select(
-      "id, original_filename, file_name, sha256, page_count, status, storage_path, created_at",
+      "id, original_filename, file_name, sha256, page_count, status, created_at",
     )
     .eq("id", documentId)
     .maybeSingle();
@@ -247,7 +246,6 @@ export async function getDocumentWithPages(
       sha256: docRow.sha256 ?? "",
       page_count: docRow.page_count ?? pages.length,
       status: docRow.status,
-      storage_path: docRow.storage_path ?? "",
       created_at: docRow.created_at,
     },
     pages,
