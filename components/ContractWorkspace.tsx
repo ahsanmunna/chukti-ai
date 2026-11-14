@@ -13,12 +13,19 @@ import {
   DocumentPane,
   type DocumentPaneStatus,
   type DocumentUploadError,
+  type SelectedClauseRange,
 } from "./DocumentPane";
 import {
   PlaybookPane,
   type PlaybookErrorKind,
   type PlaybookSaveStatus,
 } from "./PlaybookPane";
+import { ClausesPane, type ExtractionStatus } from "./ClausesPane";
+import type {
+  ClauseDto,
+  ExtractionResponseDto,
+  ExtractionRunDto,
+} from "@/lib/extraction/service";
 
 interface DocumentResponsePayload {
   document: DocumentMetadataDto;
@@ -63,6 +70,13 @@ export function ContractWorkspace() {
   const [playbookFieldErrors, setPlaybookFieldErrors] = useState<Record<string, string>>({});
   const [playbookErrorKind, setPlaybookErrorKind] = useState<PlaybookErrorKind>(null);
 
+  const [activeRightTab, setActiveRightTab] = useState<"playbook" | "clauses">("playbook");
+  const [extractStatus, setExtractStatus] = useState<ExtractionStatus>("idle");
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [runData, setRunData] = useState<ExtractionRunDto | null>(null);
+  const [clauses, setClauses] = useState<ClauseDto[]>([]);
+  const [selectedClause, setSelectedClause] = useState<SelectedClauseRange | null>(null);
+
   const messages = getMessages(locale);
 
   useEffect(() => {
@@ -95,6 +109,74 @@ export function ContractWorkspace() {
     }
   };
 
+  const loadClausesForDocument = async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/clauses`, {
+        method: "GET",
+      });
+      if (!response.ok) {
+        return;
+      }
+      const data = (await response.json()) as
+        | ExtractionResponseDto
+        | { run: null; clauses: [] };
+      if (data.clauses && data.clauses.length > 0) {
+        setClauses(data.clauses);
+        setRunData(data.run);
+        setExtractStatus("succeeded");
+      } else {
+        setClauses([]);
+        setRunData(null);
+        setExtractStatus("idle");
+      }
+    } catch {
+      // Non-fatal on initial load
+    }
+  };
+
+  const handleExtractClauses = async () => {
+    const documentId = documentData?.document.id;
+    if (!documentId) return;
+
+    setActiveRightTab("clauses");
+    setExtractStatus("running");
+    setExtractError(null);
+    setSelectedClause(null);
+
+    try {
+      const response = await fetch(`/api/documents/${documentId}/extract`, {
+        method: "POST",
+      });
+      const data = (await response.json()) as ExtractionResponseDto & ApiErrorResponse;
+
+      if (!response.ok || !data.run) {
+        setExtractStatus("error");
+        setExtractError(data.error?.code ?? "unknown");
+        return;
+      }
+
+      setRunData(data.run);
+      setClauses(data.clauses);
+      setExtractStatus("succeeded");
+    } catch {
+      setExtractStatus("error");
+      setExtractError("network_error");
+    }
+  };
+
+  const handleSelectClause = (clause: ClauseDto) => {
+    setSelectedClause({
+      id: clause.id,
+      page_number: clause.page_number,
+      char_start: clause.char_start,
+      char_end: clause.char_end,
+    });
+    // On mobile screens, automatically switch to document tab to show highlighted mark
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setActiveMobileTab("document");
+    }
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const initialDocId = params.get("documentId");
@@ -122,7 +204,10 @@ export function ContractWorkspace() {
         }
         setDocumentData({ document: json.document, pages: json.pages });
         setDocStatus("loaded");
-        await loadPlaybookForDocument(json.document.id);
+        await Promise.all([
+          loadPlaybookForDocument(json.document.id),
+          loadClausesForDocument(json.document.id),
+        ]);
       } catch {
         if (!cancelled) {
           setDocStatus("error");
@@ -217,6 +302,7 @@ export function ContractWorkspace() {
         nextUrl.searchParams.set("documentId", parsed.document.id);
         window.history.replaceState(null, "", nextUrl.toString());
         void loadPlaybookForDocument(parsed.document.id);
+        void loadClausesForDocument(parsed.document.id);
         return;
       }
 
@@ -249,6 +335,12 @@ export function ContractWorkspace() {
     setPlaybookSaveStatus("idle");
     setPlaybookFieldErrors({});
     setPlaybookErrorKind(null);
+    setClauses([]);
+    setRunData(null);
+    setExtractStatus("idle");
+    setExtractError(null);
+    setSelectedClause(null);
+    setActiveRightTab("playbook");
 
     const nextUrl = new URL(window.location.href);
     nextUrl.searchParams.delete("documentId");
@@ -429,6 +521,7 @@ export function ContractWorkspace() {
               uploadingFilename={uploadingFilename}
               error={docError}
               documentData={documentData}
+              selectedClause={selectedClause}
               onFileSelected={handleFileSelected}
               onReset={handleResetDocument}
             />
@@ -442,26 +535,106 @@ export function ContractWorkspace() {
               activeMobileTab === "playbook" ? "block" : "hidden"
             }`}
           >
-            <PlaybookPane
-              messages={messages.playbookPane}
-              locale={locale}
-              documentId={documentData?.document.id ?? null}
-              playbook={playbook}
-              loading={playbookLoading}
-              loadError={playbookLoadError}
-              onRetryLoad={() => {
-                if (documentData?.document.id) {
-                  void loadPlaybookForDocument(documentData.document.id);
-                }
-              }}
-              saveStatus={playbookSaveStatus}
-              hasServerSaved={hasServerSaved}
-              isDirty={isPlaybookDirty}
-              fieldErrors={playbookFieldErrors}
-              playbookErrorKind={playbookErrorKind}
-              onChange={handlePlaybookChange}
-              onSave={() => void handleSavePlaybook()}
-            />
+            <div className="space-y-4">
+              {/* Right pane inner switch: Playbook | Clauses */}
+              <div
+                role="tablist"
+                aria-label={messages.tabs.groupLabel}
+                className="grid grid-cols-2 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-inner-playbook"
+                  aria-selected={activeRightTab === "playbook"}
+                  aria-controls="panel-inner-playbook"
+                  onClick={() => setActiveRightTab("playbook")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    activeRightTab === "playbook"
+                      ? "bg-surface-panel text-text-primary shadow-xs"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  {messages.tabs.playbook}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-inner-clauses"
+                  aria-selected={activeRightTab === "clauses"}
+                  aria-controls="panel-inner-clauses"
+                  onClick={() => setActiveRightTab("clauses")}
+                  className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    activeRightTab === "clauses"
+                      ? "bg-surface-panel text-text-primary shadow-xs"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>{messages.tabs.clauses}</span>
+                  {clauses.length > 0 ? (
+                    <span className="rounded-full bg-accent-primary px-1.5 py-0.2 text-[10px] text-text-inverse">
+                      {clauses.length}
+                    </span>
+                  ) : null}
+                </button>
+              </div>
+
+              {/* Inner Tab Panels */}
+              {activeRightTab === "playbook" ? (
+                <div
+                  id="panel-inner-playbook"
+                  role="tabpanel"
+                  aria-labelledby="tab-inner-playbook"
+                >
+                  <PlaybookPane
+                    messages={messages.playbookPane}
+                    locale={locale}
+                    documentId={documentData?.document.id ?? null}
+                    playbook={playbook}
+                    loading={playbookLoading}
+                    loadError={playbookLoadError}
+                    onRetryLoad={() => {
+                      if (documentData?.document.id) {
+                        void loadPlaybookForDocument(documentData.document.id);
+                      }
+                    }}
+                    saveStatus={playbookSaveStatus}
+                    hasServerSaved={hasServerSaved}
+                    isDirty={isPlaybookDirty}
+                    fieldErrors={playbookFieldErrors}
+                    playbookErrorKind={playbookErrorKind}
+                    onChange={handlePlaybookChange}
+                    onSave={() => void handleSavePlaybook()}
+                    onExtractClauses={handleExtractClauses}
+                    isExtracting={extractStatus === "running"}
+                  />
+                </div>
+              ) : (
+                <div
+                  id="panel-inner-clauses"
+                  role="tabpanel"
+                  aria-labelledby="tab-inner-clauses"
+                >
+                  <ClausesPane
+                    messages={messages.clausesPane}
+                    locale={locale}
+                    documentId={documentData?.document.id ?? null}
+                    status={extractStatus}
+                    errorCode={extractError}
+                    runData={runData}
+                    clauses={clauses}
+                    selectedClauseId={selectedClause?.id ?? null}
+                    onSelectClause={handleSelectClause}
+                    onExtract={handleExtractClauses}
+                    isExtractDisabled={
+                      !documentData?.document.id ||
+                      Boolean(playbookLoadError) ||
+                      extractStatus === "running"
+                    }
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>

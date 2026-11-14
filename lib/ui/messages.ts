@@ -31,3 +31,19 @@ export function getPlaybookFieldErrorMessage(
   }
   return dict.fallback;
 }
+
+/**
+ * Maps an extraction error code to its localized user-facing message.
+ * Always returns a localized dictionary message; unknown codes map to generic fallback.
+ * Never exposes raw error codes or raw server error text.
+ */
+export function getExtractionErrorMessage(
+  code: string | null | undefined,
+  locale: Locale,
+): string {
+  const dict = getMessages(locale).clausesPane.errorCodes;
+  if (code && Object.prototype.hasOwnProperty.call(dict, code)) {
+    return dict[code as keyof typeof dict];
+  }
+  return dict.unknown;
+}

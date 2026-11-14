@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import bn from "@/lib/i18n/bn.json";
 import en from "@/lib/i18n/en.json";
-import { getPlaybookFieldErrorMessage, getUploadErrorMessage } from "@/lib/ui/messages";
+import {
+  getExtractionErrorMessage,
+  getPlaybookFieldErrorMessage,
+  getUploadErrorMessage,
+} from "@/lib/ui/messages";
 
 describe("F1 upload error messages", () => {
   it("returns exact expected English copy for all known error codes", () => {
@@ -120,6 +124,73 @@ describe("F2 playbook field error messages", () => {
     );
     expect(getPlaybookFieldErrorMessage(null, "en")).toBe("Check this value.");
     expect(getPlaybookFieldErrorMessage(undefined, "bn")).toBe("এই মানটি যাচাই করুন।");
+  });
+});
+
+describe("F3 extraction error messages", () => {
+  it("returns exact expected English copy for all known extraction error codes", () => {
+    expect(getExtractionErrorMessage("llm_not_configured", "en")).toBe(
+      "The AI service is not configured. Please contact support or check server settings.",
+    );
+    expect(getExtractionErrorMessage("llm_rate_limited", "en")).toBe(
+      "The AI service is currently busy. Please wait a moment and try again.",
+    );
+    expect(getExtractionErrorMessage("llm_unavailable", "en")).toBe(
+      "The AI service is temporarily unavailable. Please try again shortly.",
+    );
+    expect(getExtractionErrorMessage("llm_invalid_output", "en")).toBe(
+      "We received an unexpected response format from the AI service. Please try again.",
+    );
+    expect(getExtractionErrorMessage("llm_blocked", "en")).toBe(
+      "This document content could not be processed due to safety filter policies.",
+    );
+    expect(getExtractionErrorMessage("rate_limited_local", "en")).toBe(
+      "You've reached the hourly limit for contract extractions. Please try again later.",
+    );
+    expect(getExtractionErrorMessage("extraction_in_progress", "en")).toBe(
+      "An extraction is already in progress for this document. Please wait for it to complete.",
+    );
+
+    const genericCodes = [
+      "invalid_id",
+      "not_found",
+      "internal_error",
+      "network_error",
+      "unknown",
+    ];
+    for (const code of genericCodes) {
+      expect(getExtractionErrorMessage(code, "en")).toBe(
+        code === "network_error"
+          ? "Connection error. Please check your internet connection and try again."
+          : "Something went wrong on our side. Please try again.",
+      );
+    }
+  });
+
+  it("returns natural Bangla copy for extraction error codes without technical jargon", () => {
+    expect(getExtractionErrorMessage("llm_not_configured", "bn")).toContain("কনফিগার");
+    expect(getExtractionErrorMessage("llm_rate_limited", "bn")).toContain("ব্যস্ত");
+    expect(getExtractionErrorMessage("llm_unavailable", "bn")).toContain("অনুপলব্ধ");
+    expect(getExtractionErrorMessage("llm_invalid_output", "bn")).toContain("অপ্রত্যাশিত");
+    expect(getExtractionErrorMessage("llm_blocked", "bn")).toContain("নিরাপত্তা");
+    expect(getExtractionErrorMessage("rate_limited_local", "bn")).toContain("ঘণ্টার");
+    expect(getExtractionErrorMessage("extraction_in_progress", "bn")).toContain("বিশ্লেষণ চলছে");
+    expect(getExtractionErrorMessage("network_error", "bn")).toContain("ইন্টারনেট");
+  });
+
+  it("falls back to generic unknown message for null, undefined, or unknown codes in both locales", () => {
+    expect(getExtractionErrorMessage("unknown_code_xyz", "en")).toBe(
+      "Something went wrong on our side. Please try again.",
+    );
+    expect(getExtractionErrorMessage("unknown_code_xyz", "bn")).toBe(
+      "আমাদের সিস্টেমে কোনো সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।",
+    );
+    expect(getExtractionErrorMessage(null, "en")).toBe(
+      "Something went wrong on our side. Please try again.",
+    );
+    expect(getExtractionErrorMessage(undefined, "bn")).toBe(
+      "আমাদের সিস্টেমে কোনো সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।",
+    );
   });
 });
 

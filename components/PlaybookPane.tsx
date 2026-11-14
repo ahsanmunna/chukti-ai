@@ -26,6 +26,8 @@ interface PlaybookPaneProps {
   playbookErrorKind: PlaybookErrorKind;
   onChange: (next: PlaybookPreferences) => void;
   onSave: () => void;
+  onExtractClauses?: () => void;
+  isExtracting?: boolean;
 }
 
 export function PlaybookPane({
@@ -43,6 +45,8 @@ export function PlaybookPane({
   playbookErrorKind,
   onChange,
   onSave,
+  onExtractClauses,
+  isExtracting = false,
 }: PlaybookPaneProps) {
   const fields = messages.fields;
 
@@ -523,21 +527,37 @@ export function PlaybookPane({
                 {saveStatus === "saving" ? messages.savingButton : messages.saveButton}
               </button>
 
-              <div className="rounded-md border border-border-default bg-surface-subtle p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="space-y-3 rounded-md border border-border-default bg-surface-subtle p-3.5">
+                {/* Gemini Free-tier Privacy Notice */}
+                <div className="rounded border border-border-warning bg-surface-warning p-2.5 text-xs text-text-warning">
+                  <p>{messages.extractNotice}</p>
+                </div>
+
+                {/* Extract clauses button */}
+                <button
+                  type="button"
+                  onClick={onExtractClauses}
+                  disabled={!documentId || Boolean(loadError) || isExtracting}
+                  className="w-full rounded-md bg-accent-primary px-4 py-2.5 text-sm font-semibold text-text-inverse hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:border disabled:border-border-default disabled:bg-surface-subtle disabled:text-text-secondary"
+                >
+                  {isExtracting ? messages.extractingButton : messages.extractButton}
+                </button>
+
+                {/* Disabled Risk analysis row */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-2.5">
                   <button
                     type="button"
                     disabled
-                    aria-describedby="analyze-not-implemented-note"
-                    className="rounded-md border border-border-default bg-surface-panel px-3.5 py-2 text-sm font-semibold text-text-secondary disabled:cursor-not-allowed"
+                    aria-describedby="risk-not-implemented-note"
+                    className="rounded-md border border-border-default bg-surface-panel px-3 py-1.5 text-xs font-semibold text-text-secondary disabled:cursor-not-allowed"
                   >
-                    {messages.analyzeButton}
+                    {messages.riskAnalysisRow}
                   </button>
                   <span
-                    id="analyze-not-implemented-note"
+                    id="risk-not-implemented-note"
                     className="inline-flex items-center rounded border border-border-default bg-surface-panel px-2.5 py-1 text-xs font-medium text-text-secondary"
                   >
-                    {messages.analyzeNotImplemented}
+                    {messages.riskAnalysisNote}
                   </span>
                 </div>
               </div>

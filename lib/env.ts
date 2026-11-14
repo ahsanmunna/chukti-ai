@@ -11,6 +11,7 @@ const serverEnvSchema = publicEnvSchema.extend({
   LLM_PROVIDER: z.enum(["gemini"]).default("gemini"),
   LLM_MODEL: z.string().min(1).default("gemini-2.5-flash"),
   GEMINI_API_KEY: z.string().min(1).optional(),
+  EXTRACT_MAX_PER_HOUR: z.coerce.number().int().positive().default(30),
 });
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
@@ -43,6 +44,7 @@ export function getServerEnv(): ServerEnv {
     LLM_PROVIDER: process.env.LLM_PROVIDER || undefined,
     LLM_MODEL: process.env.LLM_MODEL || undefined,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || undefined,
+    EXTRACT_MAX_PER_HOUR: process.env.EXTRACT_MAX_PER_HOUR || undefined,
   });
 }
 

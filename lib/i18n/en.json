@@ -13,7 +13,8 @@
   "tabs": {
     "groupLabel": "Workspace sections",
     "document": "Contract document",
-    "playbook": "Playbook"
+    "playbook": "Playbook",
+    "clauses": "Clauses"
   },
   "documentPane": {
     "title": "Contract PDF",
@@ -75,6 +76,11 @@
     "saveFailed": "Could not save the playbook. Please try again.",
     "analyzeButton": "Analyze contract",
     "analyzeNotImplemented": "Available in the next phase",
+    "extractButton": "Extract clauses",
+    "extractingButton": "Extracting clauses...",
+    "extractNotice": "Extracting sends the contract text to Google's Gemini API (free tier; Google may use it to improve its products). Do not analyze confidential contracts.",
+    "riskAnalysisRow": "Risk analysis",
+    "riskAnalysisNote": "Available in the next phase",
     "fieldErrors": {
       "liability_cap.max_multiple_of_fees": "Enter a number from 0.5 to 10.",
       "payment_terms.max_days_to_pay": "Enter a whole number from 1 to 120.",
@@ -118,6 +124,48 @@
         "writtenOrderLabel": "Require a written change order",
         "writtenOrderHelp": "Stops unpaid extra work by requiring written approval before scope expands."
       }
+    }
+  },
+  "clausesPane": {
+    "tabTitle": "Clauses",
+    "emptyStateHeading": "No clauses extracted yet",
+    "emptyStateDescription": "Extract clauses to review key contract terms verified against the document text.",
+    "extractButton": "Extract clauses",
+    "extractNotice": "Extracting sends the contract text to Google's Gemini API (free tier; Google may use it to improve its products). Do not analyze confidential contracts.",
+    "runningTitle": "Extracting and verifying clauses...",
+    "runningDescription": "Extracting clauses with Gemini and verifying quotes against document pages...",
+    "errorTitle": "Clause extraction failed",
+    "retryButton": "Try again",
+    "cachedNotice": "Reused from an earlier analysis of this same file.",
+    "resultsSummary": "{count} clauses found. {rejected} suggested quotes were discarded because they could not be matched to the document text.",
+    "verifiedBadge": "Quote verified in document text",
+    "lowConfidenceBadge": "Low model confidence",
+    "pageLabel": "Page",
+    "showMore": "Show more",
+    "showLess": "Show less",
+    "types": {
+      "liability": "Liability",
+      "payment": "Payment",
+      "indemnity": "Indemnity",
+      "ip_ownership": "IP ownership",
+      "termination": "Termination",
+      "scope_change": "Scope change",
+      "governing_law": "Governing law & dispute resolution",
+      "definition": "Definition"
+    },
+    "errorCodes": {
+      "llm_not_configured": "The AI service is not configured. Please contact support or check server settings.",
+      "llm_rate_limited": "The AI service is currently busy. Please wait a moment and try again.",
+      "llm_unavailable": "The AI service is temporarily unavailable. Please try again shortly.",
+      "llm_invalid_output": "We received an unexpected response format from the AI service. Please try again.",
+      "llm_blocked": "This document content could not be processed due to safety filter policies.",
+      "rate_limited_local": "You've reached the hourly limit for contract extractions. Please try again later.",
+      "extraction_in_progress": "An extraction is already in progress for this document. Please wait for it to complete.",
+      "invalid_id": "Something went wrong on our side. Please try again.",
+      "not_found": "Something went wrong on our side. Please try again.",
+      "internal_error": "Something went wrong on our side. Please try again.",
+      "network_error": "Connection error. Please check your internet connection and try again.",
+      "unknown": "Something went wrong on our side. Please try again."
     }
   }
 }
