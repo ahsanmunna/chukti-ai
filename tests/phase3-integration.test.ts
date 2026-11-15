@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { POST as analyzeDocument } from "@/app/api/documents/[id]/analyze/route";
 import { POST as extractClauses } from "@/app/api/documents/[id]/extract/route";
 import { GET as getFindings } from "@/app/api/documents/[id]/findings/route";
@@ -44,6 +44,13 @@ class FakeLlmClient implements LlmClient {
     evidence_quote: string;
     facts: Record<string, unknown>;
   }> = [];
+  public cannedFactsResponses: Array<
+    Array<{
+      clause: string;
+      evidence_quote: string;
+      facts: Record<string, unknown>;
+    }>
+  > = [];
   public failureError: Error | null = null;
 
   async generateJson<T = unknown>(options: GenerateJsonOptions): Promise<GenerateJsonResult<T>> {
@@ -64,8 +71,12 @@ class FakeLlmClient implements LlmClient {
 
     if (isFactsCall) {
       this.factsCallCount++;
+      const items =
+        this.cannedFactsResponses.length > 0
+          ? this.cannedFactsResponses.shift()!
+          : this.cannedFactsItems;
       return {
-        json: { items: this.cannedFactsItems } as T,
+        json: { items } as T,
         usage: { inputTokens: 400, outputTokens: 150 },
         model: process.env.LLM_MODEL || "gemini-3.6-flash",
       };
@@ -101,12 +112,17 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
     setLlmClientForTesting(fakeLlm);
   });
 
+  beforeEach(() => {
+    setLlmClientForTesting(fakeLlm);
+  });
+
   afterEach(() => {
     fakeLlm.callCount = 0;
     fakeLlm.factsCallCount = 0;
     fakeLlm.delayMs = 0;
     fakeLlm.cannedClauses = [];
     fakeLlm.cannedFactsItems = [];
+    fakeLlm.cannedFactsResponses = [];
     fakeLlm.failureError = null;
   });
 
@@ -259,16 +275,19 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
 
     const clauses = updatedClauses as ClauseRow[];
     expect(clauses[0].facts_verified).toBe(true);
-    expect(clauses[0].facts_prompt_version).toBe("v2");
+    expect(clauses[0].facts_status).toBe("extracted");
+    expect(clauses[0].facts_prompt_version).toBe("v3");
     expect(clauses[0].facts_evidence).toBe("requires a signed written change order");
 
     expect(clauses[1].facts_verified).toBe(true);
-    expect(clauses[1].facts_prompt_version).toBe("v2");
+    expect(clauses[1].facts_status).toBe("extracted");
+    expect(clauses[1].facts_prompt_version).toBe("v3");
     expect(clauses[1].facts_evidence).toBe("within forty-five (45) calendar days from receipt of invoice");
 
-    // Dropped clause (C3): facts_verified = false, facts_evidence = null, all fields unspecified/null
+    // Dropped clause (C3): facts_verified = false, facts_status = 'failed', facts_evidence = null, all fields unspecified/null
     expect(clauses[2].facts_verified).toBe(false);
-    expect(clauses[2].facts_prompt_version).toBe("v2");
+    expect(clauses[2].facts_status).toBe("failed");
+    expect(clauses[2].facts_prompt_version).toBe("v3");
     expect(clauses[2].facts_evidence).toBeNull();
     const c3Facts = clauses[2].facts as Record<string, unknown>;
     expect(c3Facts.contractor_liability).toBe("unspecified");
@@ -307,6 +326,9 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
     expect(getFindingsJson.facts_summary).toEqual({
       total_clauses: 3,
       verified_clauses: 2,
+      extracted_clauses: 2,
+      no_facts_clauses: 0,
+      failed_clauses: 1,
     });
   });
 
@@ -591,5 +613,391 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
     });
     expect(factsRunsInsertErr).toBeTruthy();
     expect(factsRunsInsertErr?.code).toBe("42501");
+  });
+
+  it("S1: anon client calling supabase.rpc('replace_document_findings', ...) fails while admin client works", async () => {
+    const { id: docId } = await uploadTestDoc();
+    const anon = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
+    const admin = createSupabaseAdminClient();
+
+    const { error: anonError } = await anon.rpc(
+      "replace_document_findings",
+      {
+        p_document_id: docId,
+        p_findings: [],
+      },
+    );
+
+    console.info("Anon RPC replace_document_findings error code and message:", {
+      code: anonError?.code,
+      message: anonError?.message,
+    });
+
+    expect(anonError).not.toBeNull();
+    expect(anonError?.code).toBe("42501");
+
+    const { data: adminData, error: adminError } = await admin.rpc(
+      "replace_document_findings",
+      {
+        p_document_id: docId,
+        p_findings: [],
+      },
+    );
+
+    expect(adminError).toBeNull();
+    expect(Array.isArray(adminData)).toBe(true);
+  });
+
+  it("P1: evidence that exists only in page text outside every clause is classified not_in_clause_but_in_document", async () => {
+    const { id: docId } = await uploadTestDoc();
+    const admin = createSupabaseAdminClient();
+
+    // Fetch page text to pick a quote that exists in document_pages outside our clause
+    const { data: pages } = await admin
+      .from("document_pages")
+      .select("text")
+      .eq("document_id", docId)
+      .order("page_number", { ascending: true });
+
+    expect(pages && pages.length > 0).toBe(true);
+    const pageText = pages![0].text;
+    // Find a clean sentence of length > 20 in page 1 that won't be in our clause quote
+    const lines = pageText.split("\n").map((l: string) => l.trim()).filter((l: string) => l.length >= 20);
+    const outsideQuote = lines[0];
+
+    fakeLlm.cannedClauses = [
+      {
+        clause_type: "payment",
+        quote: "Client shall pay undisputed invoices within forty-five (45) calendar days from receipt of invoice.",
+        page_hint: 2,
+        confidence: "high",
+      },
+    ];
+
+    await extractClauses(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/extract`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+
+    // LLM returns evidence quote that is from page 1 outside the payment clause
+    fakeLlm.cannedFactsItems = [
+      {
+        clause: "[[C1]]",
+        evidence_quote: outsideQuote,
+        facts: { days_to_pay: 45 },
+      },
+    ];
+
+    const analyzeRes = await analyzeDocument(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/analyze`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+
+    expect(analyzeRes.status).toBe(200);
+
+    const { data: factsRunRow } = await admin
+      .from("facts_runs")
+      .select("*")
+      .eq("document_id", docId)
+      .single();
+
+    const factsRun = factsRunRow as FactsRunRow;
+    const dropped = factsRun.dropped as Array<{ reason: string }>;
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0].reason).toBe("not_in_clause_but_in_document");
+
+    const { data: clauseRows } = await admin
+      .from("clauses")
+      .select("facts_status, facts_verified")
+      .eq("document_id", docId);
+    expect(clauseRows![0].facts_status).toBe("failed");
+    expect(clauseRows![0].facts_verified).toBe(false);
+  });
+
+  it("C1: all items present -> classified extracted with verified evidence", async () => {
+    const { id: docId } = await uploadTestDoc();
+
+    fakeLlm.cannedClauses = [
+      {
+        clause_type: "scope_change",
+        quote: "Any expansion of deliverables, schedule, or technical milestones requires a signed written change order.",
+        page_hint: 1,
+        confidence: "high",
+      },
+      {
+        clause_type: "payment",
+        quote: "Client shall pay undisputed invoices within forty-five (45) calendar days from receipt of invoice.",
+        page_hint: 2,
+        confidence: "high",
+      },
+    ];
+
+    await extractClauses(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/extract`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+
+    fakeLlm.cannedFactsItems = [
+      {
+        clause: "[[C1]]",
+        evidence_quote: "requires a signed written change order",
+        facts: { written_change_order_required: "yes" },
+      },
+      {
+        clause: "[[C2]]",
+        evidence_quote: "within forty-five (45) calendar days from receipt of invoice",
+        facts: { days_to_pay: 45, payment_trigger: "invoice_receipt" },
+      },
+    ];
+
+    const analyzeRes = await analyzeDocument(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/analyze`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+    expect(analyzeRes.status).toBe(200);
+    const json = await analyzeRes.json();
+    expect(json.run.verified_count).toBe(2);
+    expect(json.run.no_facts_count).toBe(0);
+    expect(json.run.failed_count).toBe(0);
+    expect(fakeLlm.factsCallCount).toBe(1);
+
+    const admin = createSupabaseAdminClient();
+    const { data: clauseRows } = await admin
+      .from("clauses")
+      .select("facts_status, facts_verified")
+      .eq("document_id", docId);
+    expect(clauseRows!.every((c) => c.facts_status === "extracted" && c.facts_verified === true)).toBe(true);
+  });
+
+  it("C1: some absent then supplied by the follow-up call -> 2 LLM calls, merged and verified", async () => {
+    const { id: docId } = await uploadTestDoc();
+
+    fakeLlm.cannedClauses = [
+      {
+        clause_type: "scope_change",
+        quote: "Any expansion of deliverables, schedule, or technical milestones requires a signed written change order.",
+        page_hint: 1,
+        confidence: "high",
+      },
+      {
+        clause_type: "payment",
+        quote: "Client shall pay undisputed invoices within forty-five (45) calendar days from receipt of invoice.",
+        page_hint: 2,
+        confidence: "high",
+      },
+    ];
+
+    await extractClauses(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/extract`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+
+    // Call 1 supplies only C1; Call 2 supplies C2 (indexed as C1 in follow-up)
+    fakeLlm.cannedFactsResponses = [
+      [
+        {
+          clause: "[[C1]]",
+          evidence_quote: "requires a signed written change order",
+          facts: { written_change_order_required: "yes" },
+        },
+      ],
+      [
+        {
+          clause: "[[C1]]",
+          evidence_quote: "within forty-five (45) calendar days from receipt of invoice",
+          facts: { days_to_pay: 45 },
+        },
+      ],
+    ];
+
+    const analyzeRes = await analyzeDocument(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/analyze`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+    expect(analyzeRes.status).toBe(200);
+    const json = await analyzeRes.json();
+    expect(fakeLlm.factsCallCount).toBe(2);
+    expect(json.run.verified_count).toBe(2);
+    expect(json.run.failed_count).toBe(0);
+
+    const admin = createSupabaseAdminClient();
+    const { data: clauseRows } = await admin
+      .from("clauses")
+      .select("facts_status")
+      .eq("document_id", docId);
+    expect(clauseRows!.every((c) => c.facts_status === "extracted")).toBe(true);
+  });
+
+  it("C1: absent twice -> failed with reason no_item", async () => {
+    const { id: docId } = await uploadTestDoc();
+
+    fakeLlm.cannedClauses = [
+      {
+        clause_type: "scope_change",
+        quote: "Any expansion of deliverables, schedule, or technical milestones requires a signed written change order.",
+        page_hint: 1,
+        confidence: "high",
+      },
+      {
+        clause_type: "payment",
+        quote: "Client shall pay undisputed invoices within forty-five (45) calendar days from receipt of invoice.",
+        page_hint: 2,
+        confidence: "high",
+      },
+    ];
+
+    await extractClauses(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/extract`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+
+    // Call 1 supplies only C1; Call 2 supplies nothing
+    fakeLlm.cannedFactsResponses = [
+      [
+        {
+          clause: "[[C1]]",
+          evidence_quote: "requires a signed written change order",
+          facts: { written_change_order_required: "yes" },
+        },
+      ],
+      [],
+    ];
+
+    const analyzeRes = await analyzeDocument(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/analyze`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+    expect(analyzeRes.status).toBe(200);
+    const json = await analyzeRes.json();
+    expect(fakeLlm.factsCallCount).toBe(2);
+    expect(json.run.verified_count).toBe(1);
+    expect(json.run.failed_count).toBe(1);
+
+    const admin = createSupabaseAdminClient();
+    const { data: factsRunRow } = await admin
+      .from("facts_runs")
+      .select("dropped")
+      .eq("document_id", docId)
+      .single();
+
+    const dropped = factsRunRow?.dropped as Array<{ reason: string }>;
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0].reason).toBe("no_item");
+  });
+
+  it("C1: all-null item with empty evidence -> none, counted as not failed, no lawyer-review flag", async () => {
+    const { id: docId } = await uploadTestDoc();
+
+    fakeLlm.cannedClauses = [
+      {
+        clause_type: "payment",
+        quote: "Client shall pay undisputed invoices within forty-five (45) calendar days from receipt of invoice.",
+        page_hint: 2,
+        confidence: "high",
+      },
+    ];
+
+    await extractClauses(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/extract`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+
+    // All null/unspecified and empty evidence
+    fakeLlm.cannedFactsItems = [
+      {
+        clause: "[[C1]]",
+        evidence_quote: "",
+        facts: {
+          days_to_pay: null,
+          payment_trigger: "unspecified",
+          client_may_withhold: "unspecified",
+        },
+      },
+    ];
+
+    const analyzeRes = await analyzeDocument(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/analyze`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+    expect(analyzeRes.status).toBe(200);
+    const json = await analyzeRes.json();
+    expect(json.run.verified_count).toBe(0);
+    expect(json.run.no_facts_count).toBe(1);
+    expect(json.run.failed_count).toBe(0);
+
+    const admin = createSupabaseAdminClient();
+    const { data: clauseRows } = await admin
+      .from("clauses")
+      .select("facts_status, facts_verified")
+      .eq("document_id", docId);
+    expect(clauseRows![0].facts_status).toBe("none");
+    expect(clauseRows![0].facts_verified).toBe(false);
+
+    // Check findings do NOT have lawyer_review_reasons with 'facts_dropped'
+    const findings: FindingRow[] = json.findings;
+    for (const f of findings) {
+      const reasons = f.lawyer_review_reasons as string[];
+      expect(reasons).not.toContain("facts_dropped");
+    }
+  });
+
+  it("C1: item with values but empty evidence -> failed with missing_evidence", async () => {
+    const { id: docId } = await uploadTestDoc();
+
+    fakeLlm.cannedClauses = [
+      {
+        clause_type: "payment",
+        quote: "Client shall pay undisputed invoices within forty-five (45) calendar days from receipt of invoice.",
+        page_hint: 2,
+        confidence: "high",
+      },
+    ];
+
+    await extractClauses(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/extract`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+
+    // Has values, but empty evidence quote
+    fakeLlm.cannedFactsItems = [
+      {
+        clause: "[[C1]]",
+        evidence_quote: "",
+        facts: {
+          days_to_pay: 45,
+        },
+      },
+    ];
+
+    const analyzeRes = await analyzeDocument(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/analyze`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+    expect(analyzeRes.status).toBe(200);
+    const json = await analyzeRes.json();
+    expect(json.run.verified_count).toBe(0);
+    expect(json.run.failed_count).toBe(1);
+
+    const admin = createSupabaseAdminClient();
+    const { data: clauseRows } = await admin
+      .from("clauses")
+      .select("facts_status, facts_verified")
+      .eq("document_id", docId);
+    expect(clauseRows![0].facts_status).toBe("failed");
+    expect(clauseRows![0].facts_verified).toBe(false);
+
+    const { data: factsRunRow } = await admin
+      .from("facts_runs")
+      .select("dropped")
+      .eq("document_id", docId)
+      .single();
+
+    const dropped = factsRunRow?.dropped as Array<{ reason: string }>;
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0].reason).toBe("missing_evidence");
   });
 });

@@ -737,11 +737,12 @@ describe("Lawyer Review Triggers", () => {
     expect(pay1?.lawyer_review_reasons).toContain("low_model_confidence");
   });
 
-  it("triggers lawyer review when clause facts were dropped (facts_verified = false)", () => {
+  it("triggers lawyer review when clause facts were dropped (facts_status = 'failed')", () => {
     const clauses: ClauseWithFacts[] = [
       createClause({
         clause_type: "payment",
         facts_verified: false,
+        facts_status: "failed",
         facts: { days_to_pay: 45 },
       }),
     ];
@@ -752,6 +753,114 @@ describe("Lawyer Review Triggers", () => {
     const pay1 = findings.find((f) => f.rule_id === "PAY-1");
     expect(pay1?.lawyer_review).toBe(true);
     expect(pay1?.lawyer_review_reasons).toContain("facts_dropped");
+  });
+
+  it("does NOT trigger facts_dropped when clause has facts_status = 'none'", () => {
+    const clauses: ClauseWithFacts[] = [
+      createClause({
+        clause_type: "payment",
+        facts_verified: false,
+        facts_status: "none",
+        facts: { days_to_pay: 45 },
+      }),
+    ];
+    const findings = evaluateRiskRules(clauses, {
+      ...DEFAULT_PLAYBOOK,
+      payment_terms: { ...DEFAULT_PLAYBOOK.payment_terms, max_days_to_pay: 30 },
+    });
+    const pay1 = findings.find((f) => f.rule_id === "PAY-1");
+    expect(pay1?.lawyer_review_reasons).not.toContain("facts_dropped");
+  });
+
+  it("R1: IP-1 with conflicting transfer_timing computes highest severity, conflicting_facts review reason, and identical finding when clause order is reversed", () => {
+    const clauseCreation = createClause({
+      id: "11111111-1111-4111-8111-111111111111",
+      clause_type: "ip_ownership",
+      page_number: 1,
+      char_start: 10,
+      char_end: 50,
+      verbatim_text: "Ownership of all IP transfers upon creation immediately.",
+      facts_verified: true,
+      facts_status: "extracted",
+      facts_evidence: "transfers upon creation",
+      facts: { transfer_timing: "on_creation", conditional_on_payment: "unspecified" },
+    });
+
+    const clauseDelivery = createClause({
+      id: "22222222-2222-4222-8222-222222222222",
+      clause_type: "ip_ownership",
+      page_number: 2,
+      char_start: 100,
+      char_end: 150,
+      verbatim_text: "IP rights transfer upon delivery of final deliverables.",
+      facts_verified: true,
+      facts_status: "extracted",
+      facts_evidence: "transfer upon delivery",
+      facts: { transfer_timing: "on_delivery", conditional_on_payment: "unspecified" },
+    });
+
+    const playbook = {
+      ...DEFAULT_PLAYBOOK,
+      ip_ownership: "transfer_after_full_payment" as const,
+    };
+
+    const findingsOrder1 = evaluateRiskRules([clauseCreation, clauseDelivery], playbook);
+    const findingsOrder2 = evaluateRiskRules([clauseDelivery, clauseCreation], playbook);
+
+    const ip1Order1 = findingsOrder1.find((f) => f.rule_id === "IP-1");
+    const ip1Order2 = findingsOrder2.find((f) => f.rule_id === "IP-1");
+
+    expect(ip1Order1).toBeDefined();
+    expect(ip1Order2).toBeDefined();
+
+    expect(ip1Order1?.severity).toBe("high");
+    expect(ip1Order2?.severity).toBe("high");
+
+    expect(ip1Order1?.lawyer_review_reasons).toContain("conflicting_facts");
+    expect(ip1Order2?.lawyer_review_reasons).toContain("conflicting_facts");
+
+    expect(ip1Order1?.clause_ids).toEqual([clauseCreation.id, clauseDelivery.id]);
+    expect(ip1Order1?.evidence).toHaveLength(2);
+
+    expect(ip1Order1).toEqual(ip1Order2);
+  });
+
+  it("R2: PAY-1 does not mutate aggregation arrays and leaves aggregated state unchanged", () => {
+    const feeClause = createClause({
+      id: "33333333-3333-4333-8333-333333333333",
+      clause_type: "payment",
+      page_number: 1,
+      char_start: 0,
+      char_end: 40,
+      verbatim_text: "Total fee for services is 5000 USD.",
+      facts_verified: true,
+      facts_status: "extracted",
+      facts: { total_fee_amount: 5000, currency: "USD", days_to_pay: null },
+    });
+
+    const paymentClause = createClause({
+      id: "44444444-4444-4444-8444-444444444444",
+      clause_type: "payment",
+      page_number: 2,
+      char_start: 50,
+      char_end: 100,
+      verbatim_text: "Payment is due within 60 calendar days of invoice.",
+      facts_verified: true,
+      facts_status: "extracted",
+      facts: { total_fee_amount: null, days_to_pay: 60, payment_trigger: "invoice_receipt" },
+    });
+
+    const clauses = [feeClause, paymentClause];
+    const initialAggregated = aggregateClauseFacts(clauses);
+    const deepCopyBefore = structuredClone(initialAggregated);
+
+    const findings = evaluateRiskRules(clauses, DEFAULT_PLAYBOOK);
+    expect(findings.some((f) => f.rule_id === "PAY-1")).toBe(true);
+
+    const aggregatedAfter = aggregateClauseFacts(clauses);
+    expect(aggregatedAfter).toEqual(deepCopyBefore);
+    expect(initialAggregated.payment.days_to_pay.clauses).toHaveLength(1);
+    expect(initialAggregated.payment.days_to_pay.clauses[0].id).toBe(paymentClause.id);
   });
 });
 

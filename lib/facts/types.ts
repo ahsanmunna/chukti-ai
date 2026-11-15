@@ -171,13 +171,23 @@ export type DroppedFactReason =
   | "too_short"
   | "too_long"
   | "not_in_clause_but_in_document"
-  | "not_in_document";
+  | "not_in_document"
+  | "no_item";
 
 export interface DroppedClauseFact {
   clause_id: string;
   clause_type: ClauseType;
   reason: DroppedFactReason;
   evidence_length: number;
+}
+
+export function areAllFactFieldsNullOrUnspecified(facts: AnyClauseFacts): boolean {
+  for (const value of Object.values(facts)) {
+    if (value !== null && value !== undefined && value !== "unspecified") {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function getDefaultFactsForType(clauseType: ClauseType): AnyClauseFacts {

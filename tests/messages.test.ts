@@ -16,12 +16,15 @@ import {
 import bn from "@/lib/i18n/bn.json";
 import en from "@/lib/i18n/en.json";
 import type { Messages } from "@/lib/i18n";
+import { DEFAULT_PLAYBOOK, type PlaybookPreferences } from "@/lib/playbook/schema";
+import { evaluateRiskRules, type Finding, type ClauseWithFacts } from "@/lib/risk";
 import type { FindingRow } from "@/lib/supabase/types";
 import {
   getExtractionErrorMessage,
   getPlaybookFieldErrorMessage,
   getUploadErrorMessage,
 } from "@/lib/ui/messages";
+import { balancedContractClauses, riskyContractClauses } from "./fixtures/fact-fixtures";
 
 describe("F1 upload error messages", () => {
   it("returns exact expected English copy for all known error codes", () => {
@@ -267,10 +270,30 @@ describe("F4: Localized labels and no raw codes on screen", () => {
       { field: "client_sole_discretion_acceptance", values: YES_NO_UNSPECIFIED },
       {
         field: "playbook_preference",
-        values: ["on_creation", "on_delivery", "on_full_payment", "license_only", "unspecified"],
+        values: [
+          "transfer_after_full_payment",
+          "transfer_on_delivery",
+          "license_only",
+          "no_requirement",
+        ],
+      },
+      {
+        field: "reason",
+        values: [
+          "no_payment_clause",
+          "unspecified_days_to_pay",
+          "no_liability_clause",
+          "unspecified_liability_cap",
+          "unspecified_liability_cap_multiple",
+        ],
       },
       { field: "clock_starts_at", values: PAYMENT_TRIGGERS },
     ];
+
+    expect(en.findingsPane.factLabels.fields.arbitration_foreign_seat).toBeDefined();
+    expect(bn.findingsPane.factLabels.fields.arbitration_foreign_seat).toBeDefined();
+    expect(en.findingsPane.factLabels.fields.reason).toBeDefined();
+    expect(bn.findingsPane.factLabels.fields.reason).toBeDefined();
 
     for (const { field, values } of enumFields) {
       const enMap = (en.findingsPane.factLabels.values as Record<string, Record<string, string>>)[field];
@@ -295,102 +318,190 @@ describe("F4: Localized labels and no raw codes on screen", () => {
     }
   });
 
-  it("fails if a raw snake_case value is rendered in the findings components (render helper test, no browser needed)", () => {
-    const sampleFindings: FindingRow[] = [
+  it("renders every finding with all sections expanded without raw snake_case tokens across playbooks and hand-made clause sets", () => {
+    const playbooks: PlaybookPreferences[] = [
+      DEFAULT_PLAYBOOK,
+      { ...DEFAULT_PLAYBOOK, ip_ownership: "license_only" },
+      { ...DEFAULT_PLAYBOOK, ip_ownership: "transfer_on_delivery" },
       {
-        id: "f1111111-1111-4111-8111-111111111111",
-        document_id: "d0000000-0000-4000-8000-000000000000",
-        extraction_run_id: "e0000000-0000-4000-8000-000000000000",
-        facts_run_id: "r0000000-0000-4000-8000-000000000000",
-        rules_version: "v2",
-        rule_id: "PAY-1",
-        severity: "high",
-        priority: 60,
-        params: {
-          days_to_pay: 90,
-          playbook_max_days: 30,
-          diff: 60,
-          amount: 10000,
-          currency: "USD",
-          clock_starts_at: "acceptance",
-        },
-        clause_ids: ["c1"],
-        evidence: [
-          {
-            clause_id: "c1",
-            page_number: 1,
-            char_start: 10,
-            char_end: 50,
-            quote: "pay within ninety (90) days",
-          },
-        ],
-        lawyer_review: false,
-        lawyer_review_reasons: [],
-        playbook_snapshot: {},
-        created_at: new Date().toISOString(),
+        ...DEFAULT_PLAYBOOK,
+        liability_cap: { ...DEFAULT_PLAYBOOK.liability_cap, require_cap: false },
       },
       {
-        id: "f2222222-2222-4222-8222-222222222222",
-        document_id: "d0000000-0000-4000-8000-000000000000",
-        extraction_run_id: "e0000000-0000-4000-8000-000000000000",
-        facts_run_id: "r0000000-0000-4000-8000-000000000000",
-        rules_version: "v2",
-        rule_id: "PAY-2",
-        severity: "medium",
-        priority: 30,
-        params: {
-          payment_trigger: "acceptance",
-          client_may_withhold: "for_unaccepted_work",
-        },
-        clause_ids: ["c1"],
-        evidence: [],
-        lawyer_review: true,
-        lawyer_review_reasons: ["facts_dropped"],
-        playbook_snapshot: {},
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: "f3333333-3333-4333-8333-333333333333",
-        document_id: "d0000000-0000-4000-8000-000000000000",
-        extraction_run_id: "e0000000-0000-4000-8000-000000000000",
-        facts_run_id: "r0000000-0000-4000-8000-000000000000",
-        rules_version: "v2",
-        rule_id: "IP-1",
-        severity: "high",
-        priority: 60,
-        params: {
-          playbook_preference: "on_full_payment",
-          transfer_timing: "on_creation",
-          conditional_on_payment: "no",
-        },
-        clause_ids: ["c2"],
-        evidence: [],
-        lawyer_review: false,
-        lawyer_review_reasons: [],
-        playbook_snapshot: {},
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: "f4444444-4444-4444-8444-444444444444",
-        document_id: "d0000000-0000-4000-8000-000000000000",
-        extraction_run_id: "e0000000-0000-4000-8000-000000000000",
-        facts_run_id: "r0000000-0000-4000-8000-000000000000",
-        rules_version: "v2",
-        rule_id: "LIAB-1",
-        severity: "high",
-        priority: 60,
-        params: {
-          contractor_liability: "unlimited",
-          require_cap: true,
-        },
-        clause_ids: ["c3"],
-        evidence: [],
-        lawyer_review: false,
-        lawyer_review_reasons: [],
-        playbook_snapshot: {},
-        created_at: new Date().toISOString(),
+        ...DEFAULT_PLAYBOOK,
+        payment_terms: { ...DEFAULT_PLAYBOOK.payment_terms, max_days_to_pay: 15 },
       },
     ];
+
+    const allFindings: Finding[] = [];
+
+    // 1. Evaluate on riskyContractClauses and balancedContractClauses under all playbooks
+    for (const pb of playbooks) {
+      allFindings.push(...evaluateRiskRules(riskyContractClauses, pb));
+      allFindings.push(...evaluateRiskRules(balancedContractClauses, pb));
+    }
+
+    // 2. Hand-made clause sets that make PAY-3, LIAB-1 (unspecified and capped) and LAW-1 (arbitration with a foreign seat) fire
+    const pay3MissingPaymentClauses: ClauseWithFacts[] = [
+      {
+        id: "pay3-c1",
+        document_id: "00000000-0000-4000-8000-000000000000",
+        run_id: null,
+        clause_type: "liability",
+        verbatim_text: "Liability is capped at 1000 USD.",
+        page_number: 1,
+        char_start: 0,
+        char_end: 32,
+        verbatim_verified: true,
+        extraction_confidence: "high",
+        page_mismatch: false,
+        facts: { contractor_liability: "capped", cap_multiple_of_fees: 1 },
+        facts_evidence: "capped at 1000 USD",
+        facts_verified: true,
+        facts_status: "extracted",
+        facts_prompt_version: "v3",
+      },
+    ];
+
+    const pay3UnspecifiedDaysClauses: ClauseWithFacts[] = [
+      {
+        id: "pay3-c2",
+        document_id: "00000000-0000-4000-8000-000000000000",
+        run_id: null,
+        clause_type: "payment",
+        verbatim_text: "Client shall pay invoices upon receipt.",
+        page_number: 1,
+        char_start: 0,
+        char_end: 39,
+        verbatim_verified: true,
+        extraction_confidence: "high",
+        page_mismatch: false,
+        facts: { days_to_pay: null, payment_trigger: "invoice_receipt", client_may_withhold: "no" },
+        facts_evidence: "pay invoices upon receipt",
+        facts_verified: true,
+        facts_status: "extracted",
+        facts_prompt_version: "v3",
+      },
+    ];
+
+    const liab1UnspecifiedClauses: ClauseWithFacts[] = [
+      {
+        id: "liab1-c1",
+        document_id: "00000000-0000-4000-8000-000000000000",
+        run_id: null,
+        clause_type: "payment",
+        verbatim_text: "Client shall pay within thirty (30) days.",
+        page_number: 1,
+        char_start: 0,
+        char_end: 41,
+        verbatim_verified: true,
+        extraction_confidence: "high",
+        page_mismatch: false,
+        facts: { days_to_pay: 30, payment_trigger: "invoice_receipt" },
+        facts_evidence: "within thirty (30) days",
+        facts_verified: true,
+        facts_status: "extracted",
+        facts_prompt_version: "v3",
+      },
+    ];
+
+    const liab1CappedExceedsClauses: ClauseWithFacts[] = [
+      {
+        id: "liab1-c2",
+        document_id: "00000000-0000-4000-8000-000000000000",
+        run_id: null,
+        clause_type: "liability",
+        verbatim_text: "Contractor liability is capped at five (5) times fees paid.",
+        page_number: 1,
+        char_start: 0,
+        char_end: 59,
+        verbatim_verified: true,
+        extraction_confidence: "high",
+        page_mismatch: false,
+        facts: { contractor_liability: "capped", cap_multiple_of_fees: 5 },
+        facts_evidence: "capped at five (5) times fees paid",
+        facts_verified: true,
+        facts_status: "extracted",
+        facts_prompt_version: "v3",
+      },
+    ];
+
+    const liab1CappedUnspecifiedMultipleClauses: ClauseWithFacts[] = [
+      {
+        id: "liab1-c3",
+        document_id: "00000000-0000-4000-8000-000000000000",
+        run_id: null,
+        clause_type: "liability",
+        verbatim_text: "Contractor liability shall be capped as agreed.",
+        page_number: 1,
+        char_start: 0,
+        char_end: 47,
+        verbatim_verified: true,
+        extraction_confidence: "high",
+        page_mismatch: false,
+        facts: { contractor_liability: "capped", cap_multiple_of_fees: null },
+        facts_evidence: "capped as agreed",
+        facts_verified: true,
+        facts_status: "extracted",
+        facts_prompt_version: "v3",
+      },
+    ];
+
+    const law1ArbitrationForeignSeatClauses: ClauseWithFacts[] = [
+      {
+        id: "law1-c1",
+        document_id: "00000000-0000-4000-8000-000000000000",
+        run_id: null,
+        clause_type: "governing_law",
+        verbatim_text: "Governed by Singapore law; disputes resolved by arbitration seated in Singapore.",
+        page_number: 1,
+        char_start: 0,
+        char_end: 80,
+        verbatim_verified: true,
+        extraction_confidence: "high",
+        page_mismatch: false,
+        facts: {
+          governing_law_name: "Singapore law",
+          foreign_to_bangladesh: "yes",
+          dispute_forum: "arbitration",
+          seat: "Singapore",
+        },
+        facts_evidence: "arbitration seated in Singapore",
+        facts_verified: true,
+        facts_status: "extracted",
+        facts_prompt_version: "v3",
+      },
+    ];
+
+    allFindings.push(...evaluateRiskRules(pay3MissingPaymentClauses, DEFAULT_PLAYBOOK));
+    allFindings.push(...evaluateRiskRules(pay3UnspecifiedDaysClauses, DEFAULT_PLAYBOOK));
+    allFindings.push(...evaluateRiskRules(liab1UnspecifiedClauses, DEFAULT_PLAYBOOK));
+    allFindings.push(...evaluateRiskRules(liab1CappedExceedsClauses, DEFAULT_PLAYBOOK));
+    allFindings.push(...evaluateRiskRules(liab1CappedUnspecifiedMultipleClauses, DEFAULT_PLAYBOOK));
+    allFindings.push(...evaluateRiskRules(law1ArbitrationForeignSeatClauses, DEFAULT_PLAYBOOK));
+
+    expect(allFindings.some((f) => f.rule_id === "PAY-3")).toBe(true);
+    expect(allFindings.some((f) => f.rule_id === "LIAB-1" && f.params.contractor_liability === "unspecified")).toBe(true);
+    expect(allFindings.some((f) => f.rule_id === "LIAB-1" && f.params.contractor_liability === "capped")).toBe(true);
+    expect(allFindings.some((f) => f.rule_id === "LAW-1" && f.params.arbitration_foreign_seat === true)).toBe(true);
+
+    const findingRows: FindingRow[] = allFindings.map((f, idx) => ({
+      id: `f-${idx}-${f.rule_id}`,
+      document_id: "00000000-0000-4000-8000-000000000000",
+      extraction_run_id: "11111111-1111-4111-8111-111111111111",
+      facts_run_id: "22222222-2222-4222-8222-222222222222",
+      rules_version: f.rule_version,
+      rule_id: f.rule_id,
+      severity: f.severity,
+      priority: f.priority,
+      params: f.params,
+      clause_ids: f.clause_ids,
+      evidence: f.evidence,
+      lawyer_review: f.lawyer_review,
+      lawyer_review_reasons: f.lawyer_review_reasons,
+      playbook_snapshot: {},
+      created_at: new Date().toISOString(),
+    }));
 
     const renderPane = (locale: "en" | "bn", findingsToRender: FindingRow[]) => {
       const messages = locale === "bn" ? bn.findingsPane : en.findingsPane;
@@ -409,25 +520,27 @@ describe("F4: Localized labels and no raw codes on screen", () => {
           onAnalyze: () => {},
           isAnalyzing: false,
           initialExpandedAll: true,
-          factsSummary: { total_clauses: 5, verified_clauses: 4 },
+          factsSummary: { total_clauses: 10, verified_clauses: 8, no_facts_clauses: 2, failed_clauses: 0 },
         }),
       );
       return html.replace(/<[^>]+>/g, " ").replace(/&[a-z0-9#]+;/gi, " ");
     };
 
-    const enText = renderPane("en", sampleFindings);
-    const bnText = renderPane("bn", sampleFindings);
-
     const snakeCaseRegex = /\b[a-z]{2,}_[a-z0-9_]+\b/;
+
+    const enText = renderPane("en", findingRows);
+    const bnText = renderPane("bn", findingRows);
 
     expect(enText).not.toMatch(snakeCaseRegex);
     expect(bnText).not.toMatch(snakeCaseRegex);
 
-    // Fail check: raw snake_case in custom/untranslated params triggers regex match
+    // Negative control: unmapped snake_case in template interpolation triggers regex match
+    const ip1Finding = findingRows.find((f) => f.rule_id === "IP-1")!;
     const badFinding: FindingRow = {
-      ...sampleFindings[0],
+      ...ip1Finding,
       params: {
-        raw_untranslated_key: "raw_snake_case_value",
+        ...(ip1Finding.params as Record<string, unknown>),
+        playbook_preference: "unmapped_snake_value",
       },
     };
     const badText = renderPane("en", [badFinding]);

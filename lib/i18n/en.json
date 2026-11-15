@@ -206,6 +206,7 @@
       "conflicting_facts": "Multiple clauses in the contract state conflicting terms",
       "unspecified_facts": "The contract does not specify this term",
       "unspecified_payment_terms": "Payment timeline is missing or unspecified",
+      "unspecified_days_to_pay": "Payment timeline is missing or unspecified",
       "no_payment_clause": "No payment clause was found in the contract",
       "unspecified_liability_cap": "Liability cap terms are missing or unspecified",
       "no_liability_clause": "No liability clause was found in the contract",
@@ -218,7 +219,10 @@
     "whatToAskFor": "What to ask for",
     "evidenceTitle": "Evidence",
     "moreRelatedPassages": "{n} more related passages",
+    "showFewerPassages": "Show fewer passages",
     "factsConfirmed": "Details confirmed for {verified} of {total} clauses.",
+    "factsSummaryLine": "Details found in {extracted} clauses. {none} clauses state nothing we check.",
+    "factsWarningLine": "{failed} clauses could not be confirmed in the document text.",
     "yesLabel": "Yes",
     "noLabel": "No",
     "detailsUsed": "Details used",
@@ -238,6 +242,7 @@
     "factLabels": {
       "fields": {
         "amount": "Fee amount",
+        "arbitration_foreign_seat": "Foreign arbitration seat",
         "cap_multiple_of_fees": "Cap multiple of fees",
         "client_convenience_termination": "Client convenience termination",
         "client_may_withhold": "Client withholding",
@@ -264,6 +269,7 @@
         "payment_trigger": "Payment trigger",
         "playbook_max_days": "Playbook maximum days",
         "playbook_preference": "Playbook IP preference",
+        "reason": "Reason",
         "references_defined_losses": "References defined losses",
         "require_cap": "Require liability cap",
         "require_pay_work_done": "Require payment for work done",
@@ -358,11 +364,17 @@
           "unspecified": "unspecified"
         },
         "playbook_preference": {
-          "license_only": "license only",
-          "on_creation": "when the work is created",
-          "on_delivery": "upon delivery",
-          "on_full_payment": "after full payment",
-          "unspecified": "unspecified"
+          "license_only": "you keep ownership and the client gets a license",
+          "no_requirement": "no specific IP requirement",
+          "transfer_after_full_payment": "ownership transfers after full payment",
+          "transfer_on_delivery": "ownership transfers upon delivery"
+        },
+        "reason": {
+          "no_liability_clause": "No liability clause found in the contract.",
+          "no_payment_clause": "No payment terms clause found in the contract.",
+          "unspecified_days_to_pay": "Payment deadline is not specified in the contract.",
+          "unspecified_liability_cap": "Liability cap is not specified in the contract.",
+          "unspecified_liability_cap_multiple": "Liability cap multiple of fees is not specified."
         },
         "references_defined_losses": {
           "no": "no",
@@ -375,11 +387,11 @@
           "unspecified": "unspecified"
         },
         "transfer_timing": {
-          "license_only": "license only",
-          "on_creation": "when the work is created",
-          "on_delivery": "upon delivery",
-          "on_full_payment": "after full payment",
-          "unspecified": "unspecified"
+          "license_only": "the client gets a license only",
+          "on_creation": "ownership transfers when the work is created",
+          "on_delivery": "ownership transfers upon delivery",
+          "on_full_payment": "ownership transfers after full payment",
+          "unspecified": "not stated"
         },
         "written_change_order_required": {
           "no": "not required",
@@ -427,7 +439,7 @@
       },
       "IP-1": {
         "title": "Intellectual property transfers before full payment",
-        "vsLine": "Your rule: ownership transfers {playbook_preference}. Contract: ownership transfers {transfer_timing}.",
+        "vsLine": "Your rule: {playbook_preference}. Contract: {transfer_timing}.",
         "reason": "Transferring IP ownership before payment is received leaves you without leverage if the client defaults.",
         "recommendation": "Ask for IP ownership to transfer only upon receipt of full payment.",
         "uncertainty": null,

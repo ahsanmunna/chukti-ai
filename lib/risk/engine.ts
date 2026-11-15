@@ -96,7 +96,7 @@ function evaluateLawyerReview(
   }
 
   const hasDroppedFacts = supportingClauses.some(
-    (c) => c.facts_verified === false,
+    (c) => c.facts_status === "failed",
   );
   if (hasDroppedFacts) {
     reasons.push("facts_dropped");
@@ -134,7 +134,7 @@ export function evaluateRiskRules(
       const days = payAgg.days_to_pay.value;
       if (days > maxDays) {
         const severity = days >= 2 * maxDays ? "high" : "medium";
-        const supportingClauses = payAgg.days_to_pay.clauses;
+        const supportingClauses = [...payAgg.days_to_pay.clauses];
         const trigger = payAgg.payment_trigger.state === "single" ? payAgg.payment_trigger.value : null;
 
         const params: Record<string, unknown> = {
@@ -467,6 +467,7 @@ export function evaluateRiskRules(
               cap_multiple_of_fees: null,
               max_multiple_of_fees: maxMultiple,
               require_cap: true,
+              reason: "unspecified_liability_cap_multiple",
             },
             lawyer_review: review.lawyer_review,
             lawyer_review_reasons: review.lawyer_review_reasons,
@@ -488,43 +489,52 @@ export function evaluateRiskRules(
       const ipAgg = ctx.aggregated.ip_ownership;
 
       if (ipAgg.clauses.length > 0) {
+        const computeTimingSeverity = (timing: string): "low" | "medium" | "high" | null => {
+          if (ipPref === "transfer_after_full_payment") {
+            if (timing === "on_creation") return "high";
+            if (timing === "on_delivery") return "medium";
+          } else if (ipPref === "license_only") {
+            if (
+              timing === "on_creation" ||
+              timing === "on_delivery" ||
+              timing === "on_full_payment"
+            ) {
+              return "high";
+            }
+          } else if (ipPref === "transfer_on_delivery") {
+            if (timing === "on_creation") return "low";
+          }
+          return null;
+        };
+
+        const rank = (s: "low" | "medium" | "high" | null): number =>
+          s === "high" ? 3 : s === "medium" ? 2 : s === "low" ? 1 : 0;
+
         let effectiveTiming: string | null = null;
         let isConflicting = false;
         let isUnspecified = false;
+        let severity: "low" | "medium" | "high" | null = null;
 
         const condPay = ipAgg.conditional_on_payment.state === "single" ? ipAgg.conditional_on_payment.value : null;
 
-        if (condPay === "no") {
+        if (ipAgg.transfer_timing.state === "conflicting") {
+          isConflicting = true;
+          const distinct = Array.from(new Set(ipAgg.transfer_timing.values));
+          distinct.sort((a, b) => {
+            const diff = rank(computeTimingSeverity(b)) - rank(computeTimingSeverity(a));
+            if (diff !== 0) return diff;
+            return a.localeCompare(b);
+          });
+          effectiveTiming = distinct[0];
+          severity = computeTimingSeverity(distinct[0]);
+        } else if (condPay === "no") {
           effectiveTiming = "on_creation";
+          severity = computeTimingSeverity("on_creation");
         } else if (ipAgg.transfer_timing.state === "single") {
           effectiveTiming = ipAgg.transfer_timing.value;
-        } else if (ipAgg.transfer_timing.state === "conflicting") {
-          isConflicting = true;
-          effectiveTiming = ipAgg.transfer_timing.values[0];
+          severity = computeTimingSeverity(effectiveTiming);
         } else {
           isUnspecified = true;
-        }
-
-        let severity: "low" | "medium" | "high" | null = null;
-
-        if (ipPref === "transfer_after_full_payment") {
-          if (effectiveTiming === "on_creation") {
-            severity = "high";
-          } else if (effectiveTiming === "on_delivery") {
-            severity = "medium";
-          }
-        } else if (ipPref === "license_only") {
-          if (
-            effectiveTiming === "on_creation" ||
-            effectiveTiming === "on_delivery" ||
-            effectiveTiming === "on_full_payment"
-          ) {
-            severity = "high";
-          }
-        } else if (ipPref === "transfer_on_delivery") {
-          if (effectiveTiming === "on_creation") {
-            severity = "low";
-          }
         }
 
         if (severity) {
@@ -534,6 +544,12 @@ export function evaluateRiskRules(
               ...(condPay === "no" ? ipAgg.conditional_on_payment.clauses : []),
             ]),
           );
+          supportingClauses.sort((a, b) => {
+            if (a.page_number !== b.page_number) return a.page_number - b.page_number;
+            if ((a.char_start ?? 0) !== (b.char_start ?? 0)) return (a.char_start ?? 0) - (b.char_start ?? 0);
+            return a.id.localeCompare(b.id);
+          });
+
           const review = evaluateLawyerReview(
             supportingClauses,
             false,

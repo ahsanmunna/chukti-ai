@@ -132,6 +132,7 @@ export interface ClauseRow {
   facts: Json | null;
   facts_evidence: string | null;
   facts_verified: boolean;
+  facts_status: "extracted" | "none" | "failed" | null;
   facts_prompt_version: string | null;
   created_at: string;
 }
@@ -160,6 +161,8 @@ export interface FactsRunRow {
   output_tokens: number | null;
   clause_count: number;
   verified_count: number;
+  no_facts_count: number;
+  failed_count: number;
   dropped: DroppedFactItem[] | Json;
   created_at: string;
 }

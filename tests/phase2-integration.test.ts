@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { GET as getClauses } from "@/app/api/documents/[id]/clauses/route";
 import { POST as extractClauses } from "@/app/api/documents/[id]/extract/route";
 import { POST as uploadDocument } from "@/app/api/documents/route";
@@ -72,6 +72,10 @@ describe("Phase 2 API integration (Supabase DB + LLM Extraction + Verifier + Cac
   beforeAll(async () => {
     loadLocalEnvIfPresent();
     fixtures = await generateSyntheticFixtures();
+    setLlmClientForTesting(fakeLlm);
+  });
+
+  beforeEach(() => {
     setLlmClientForTesting(fakeLlm);
   });
 

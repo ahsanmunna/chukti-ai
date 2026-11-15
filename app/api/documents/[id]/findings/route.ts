@@ -62,7 +62,7 @@ export async function GET(
   // Fetch latest succeeded facts run for clause counts
   const { data: latestFactsRun } = await supabase
     .from("facts_runs")
-    .select("clause_count, verified_count")
+    .select("clause_count, verified_count, no_facts_count, failed_count")
     .eq("document_id", id)
     .eq("status", "succeeded")
     .order("started_at", { ascending: false })
@@ -76,6 +76,9 @@ export async function GET(
         ? {
             total_clauses: latestFactsRun.clause_count,
             verified_clauses: latestFactsRun.verified_count,
+            extracted_clauses: latestFactsRun.verified_count,
+            no_facts_clauses: latestFactsRun.no_facts_count ?? 0,
+            failed_clauses: latestFactsRun.failed_count ?? 0,
           }
         : null,
     },

@@ -160,7 +160,7 @@ describe("Facts Prompt Building (buildFactsUserPrompt)", () => {
 
     expect(markerMap.get("C1")?.id).toBe("11111111-2222-3333-4444-555555555555");
     expect(markerMap.get("C2")?.id).toBe("99999999-8888-7777-6666-555555555555");
-    expect(FACTS_PROMPT_VERSION).toBe("v2");
+    expect(FACTS_PROMPT_VERSION).toBe("v3");
   });
 });
 

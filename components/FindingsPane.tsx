@@ -12,6 +12,8 @@ export type FindingsStatus = "idle" | "running" | "succeeded" | "error";
 export interface FactsSummary {
   total_clauses: number;
   verified_clauses: number;
+  no_facts_clauses?: number;
+  failed_clauses?: number;
 }
 
 interface FindingsPaneProps {
@@ -350,10 +352,31 @@ export function FindingsPane({
             </div>
 
             {factsSummary ? (
-              <div className="pt-1 border-t border-border-subtle text-xs text-text-secondary">
-                {messages.factsConfirmed
-                  .replace("{verified}", String(factsSummary.verified_clauses))
-                  .replace("{total}", String(factsSummary.total_clauses))}
+              <div className="pt-1 border-t border-border-subtle text-xs space-y-0.5">
+                <p className="text-text-secondary">
+                  {(messages.factsSummaryLine ?? "")
+                    .replace("{extracted}", String(factsSummary.verified_clauses))
+                    .replace(
+                      "{none}",
+                      String(
+                        factsSummary.no_facts_clauses ??
+                          Math.max(
+                            0,
+                            factsSummary.total_clauses -
+                              factsSummary.verified_clauses -
+                              (factsSummary.failed_clauses ?? 0),
+                          ),
+                      ),
+                    )}
+                </p>
+                {(factsSummary.failed_clauses ?? 0) > 0 ? (
+                  <p className="text-text-warning">
+                    {(messages.factsWarningLine ?? "").replace(
+                      "{failed}",
+                      String(factsSummary.failed_clauses),
+                    )}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
@@ -400,9 +423,66 @@ export function FindingsPane({
                 new Set(evidenceList.map((e) => e.page_number)),
               ).sort((a, b) => a - b);
 
-              const factsUsed = Object.entries(findingObj.params).filter(
-                ([k, v]) => v !== null && v !== undefined && k !== "reason",
-              );
+              const fieldLabels = messages.factLabels?.fields as Record<string, string> | undefined;
+              const valueLabels = messages.factLabels?.values as Record<string, Record<string, string>> | undefined;
+
+              const factsUsed: Array<{ key: string; label: string; displayValue: string }> = [];
+
+              for (const [k, v] of Object.entries(findingObj.params)) {
+                if (v === null || v === undefined) {
+                  continue;
+                }
+                const fieldLabel = fieldLabels?.[k];
+                if (!fieldLabel) {
+                  continue;
+                }
+
+                if (typeof v === "boolean") {
+                  factsUsed.push({
+                    key: k,
+                    label: fieldLabel,
+                    displayValue: v ? (messages.yesLabel ?? "Yes") : (messages.noLabel ?? "No"),
+                  });
+                } else if (typeof v === "number") {
+                  factsUsed.push({
+                    key: k,
+                    label: fieldLabel,
+                    displayValue: String(v),
+                  });
+                } else if (typeof v === "string") {
+                  const mapped = valueLabels?.[k]?.[v];
+                  if (mapped) {
+                    factsUsed.push({
+                      key: k,
+                      label: fieldLabel,
+                      displayValue: mapped,
+                    });
+                  }
+                } else if (Array.isArray(v)) {
+                  const enumMap = valueLabels?.[k];
+                  const mappedItems: string[] = [];
+                  let allValid = true;
+                  for (const item of v) {
+                    if (typeof item === "boolean") {
+                      mappedItems.push(item ? (messages.yesLabel ?? "Yes") : (messages.noLabel ?? "No"));
+                    } else if (typeof item === "number") {
+                      mappedItems.push(String(item));
+                    } else if (typeof item === "string" && enumMap && item in enumMap) {
+                      mappedItems.push(enumMap[item]);
+                    } else {
+                      allValid = false;
+                      break;
+                    }
+                  }
+                  if (allValid && mappedItems.length > 0) {
+                    factsUsed.push({
+                      key: k,
+                      label: fieldLabel,
+                      displayValue: mappedItems.join(", "),
+                    });
+                  }
+                }
+              }
 
               return (
                 <div
@@ -476,11 +556,14 @@ export function FindingsPane({
                       </div>
                       {findingObj.lawyer_review_reasons.length > 0 ? (
                         <ul className="mt-1 list-disc pl-4 space-y-0.5 text-[11px]">
-                          {findingObj.lawyer_review_reasons.map((r) => (
-                            <li key={r}>
-                              {messages.lawyerReviewReasons[r as keyof typeof messages.lawyerReviewReasons] ?? r}
-                            </li>
-                          ))}
+                          {findingObj.lawyer_review_reasons
+                            .map((r) => messages.lawyerReviewReasons[r as keyof typeof messages.lawyerReviewReasons])
+                            .filter(Boolean)
+                            .map((reasonText, idx) => (
+                              <li key={idx}>
+                                {reasonText}
+                              </li>
+                            ))}
                         </ul>
                       ) : null}
                     </div>
@@ -568,7 +651,7 @@ export function FindingsPane({
                                     className="mt-1 block text-xs font-medium text-accent-primary hover:underline focus:outline-none"
                                   >
                                     {isEvidenceExpanded
-                                      ? "− " + messages.moreRelatedPassages.replace("{n}", String(evidenceList.length - 3))
+                                      ? messages.showFewerPassages
                                       : messages.moreRelatedPassages.replace("{n}", String(evidenceList.length - 3))}
                                   </button>
                                 ) : null}
@@ -592,38 +675,12 @@ export function FindingsPane({
                         </button>
                         {isDetailsExpanded ? (
                           <div className="mt-1 space-y-0.5 rounded border border-border-subtle bg-surface-subtle p-2 font-mono text-[11px] text-text-secondary">
-                            {factsUsed.map(([k, v]) => {
-                              const fieldLabel =
-                                messages.factLabels?.fields?.[k as keyof typeof messages.factLabels.fields] ?? k;
-                              let displayVal = String(v);
-                              if (typeof v === "boolean") {
-                                displayVal = v ? (messages.yesLabel ?? "Yes") : (messages.noLabel ?? "No");
-                              } else if (Array.isArray(v)) {
-                                const enumMap =
-                                  messages.factLabels?.values?.[k as keyof typeof messages.factLabels.values];
-                                displayVal = v
-                                  .map((item) => {
-                                    if (typeof item === "string" && enumMap && item in enumMap) {
-                                      return (enumMap as Record<string, string>)[item];
-                                    }
-                                    return String(item);
-                                  })
-                                  .join(", ");
-                              } else if (typeof v === "string") {
-                                const enumMap =
-                                  messages.factLabels?.values?.[k as keyof typeof messages.factLabels.values];
-                                if (enumMap && v in enumMap) {
-                                  displayVal = (enumMap as Record<string, string>)[v];
-                                }
-                              }
-
-                              return (
-                                <div key={k} className="flex justify-between gap-2">
-                                  <span className="font-medium text-text-muted">{fieldLabel}:</span>
-                                  <span className="text-right text-text-primary">{displayVal}</span>
-                                </div>
-                              );
-                            })}
+                            {factsUsed.map(({ key, label, displayValue }) => (
+                              <div key={key} className="flex justify-between gap-2">
+                                <span className="font-medium text-text-muted">{label}:</span>
+                                <span className="text-right text-text-primary">{displayValue}</span>
+                              </div>
+                            ))}
                           </div>
                         ) : null}
                       </div>

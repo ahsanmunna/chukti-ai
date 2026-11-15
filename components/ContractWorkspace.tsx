@@ -22,7 +22,7 @@ import {
   type PlaybookSaveStatus,
 } from "./PlaybookPane";
 import { ClausesPane, type ExtractionStatus } from "./ClausesPane";
-import { FindingsPane, type FindingsStatus } from "./FindingsPane";
+import { FindingsPane, type FactsSummary, type FindingsStatus } from "./FindingsPane";
 import type { FindingEvidenceItem, FindingRow } from "@/lib/supabase/types";
 import type {
   ClauseDto,
@@ -83,7 +83,7 @@ export function ContractWorkspace() {
   const [findingsStatus, setFindingsStatus] = useState<FindingsStatus>("idle");
   const [findingsError, setFindingsError] = useState<string | null>(null);
   const [findings, setFindings] = useState<FindingRow[]>([]);
-  const [factsSummary, setFactsSummary] = useState<{ total_clauses: number; verified_clauses: number } | null>(null);
+  const [factsSummary, setFactsSummary] = useState<FactsSummary | null>(null);
   const [playbookUsed, setPlaybookUsed] = useState<"saved" | "defaults">("defaults");
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [highlightRanges, setHighlightRanges] = useState<DocumentHighlightRange[] | null>(null);
@@ -190,7 +190,7 @@ export function ContractWorkspace() {
       if (!response.ok) return;
       const data = (await response.json()) as {
         findings?: FindingRow[];
-        facts_summary?: { total_clauses: number; verified_clauses: number } | null;
+        facts_summary?: FactsSummary | null;
       };
       if (data.facts_summary) {
         setFactsSummary(data.facts_summary);
@@ -224,7 +224,7 @@ export function ContractWorkspace() {
       });
       const data = (await response.json()) as {
         findings?: FindingRow[];
-        facts_summary?: { total_clauses: number; verified_clauses: number } | null;
+        facts_summary?: FactsSummary | null;
         error?: { code?: string; message?: string };
       };
 

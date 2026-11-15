@@ -1,6 +1,6 @@
 # Chukti AI Risk Rules Reference
 
-**Version:** `v2` (`FACTS_PROMPT_VERSION = "v2"`, `RISK_RULES_VERSION = "v2"`)
+**Version:** `v3` (`FACTS_PROMPT_VERSION = "v3"`, `RISK_RULES_VERSION = "v3"`)
 
 This document catalogs every deterministic risk rule evaluated by the Chukti AI rule engine (`lib/risk/engine.ts`).
 Findings are computed solely by deterministic TypeScript functions comparing verified facts against the user's playbook. The LLM extracts facts; it never assigns severities, priority scores, or judgments.

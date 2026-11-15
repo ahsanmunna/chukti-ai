@@ -206,6 +206,7 @@
       "conflicting_facts": "চুক্তির একাধিক শর্তে পরস্পরবিরোধী তথ্য রয়েছে",
       "unspecified_facts": "চুক্তিতে এই বিষয়টি স্পষ্টভাবে উল্লেখ নেই",
       "unspecified_payment_terms": "মূল্য পরিশোধের সুনির্দিষ্ট সময়সীমা উল্লেখ নেই",
+      "unspecified_days_to_pay": "মূল্য পরিশোধের সুনির্দিষ্ট সময়সীমা উল্লেখ নেই",
       "no_payment_clause": "চুক্তিতে মূল্য পরিশোধ সংক্রান্ত কোনো শর্ত পাওয়া যায়নি",
       "unspecified_liability_cap": "দায়বদ্ধতার সীমার শর্তাবলি অস্পষ্ট বা অনুপস্থিত",
       "no_liability_clause": "চুক্তিতে কোনো দায়বদ্ধতার শর্ত পাওয়া যায়নি",
@@ -218,7 +219,10 @@
     "whatToAskFor": "কী পরিবর্তন চাইতে পারেন",
     "evidenceTitle": "প্রাসঙ্গিক উদ্ধৃতি",
     "moreRelatedPassages": "আরও {n} টি সম্পর্কিত অনুচ্ছেদ",
+    "showFewerPassages": "কম অনুচ্ছেদ দেখান",
     "factsConfirmed": "{total} টি শর্তের মধ্যে {verified} টির বিবরণ নিশ্চিত করা হয়েছে।",
+    "factsSummaryLine": "{extracted} টি শর্তে বিবরণ পাওয়া গেছে। {none} টি শর্তে আমাদের যাচাইযোগ্য কিছু উল্লেখ নেই।",
+    "factsWarningLine": "{failed} টি শর্ত ডকুমেন্টের মূল লেখায় নিশ্চিত করা যায়নি।",
     "yesLabel": "হ্যাঁ",
     "noLabel": "না",
     "detailsUsed": "ব্যবহৃত তথ্য",
@@ -238,6 +242,7 @@
     "factLabels": {
       "fields": {
         "amount": "ফির পরিমাণ",
+        "arbitration_foreign_seat": "বিদেশি সালিশি স্থান",
         "cap_multiple_of_fees": "দায়ের সর্বোচ্চ গুণিতক",
         "client_convenience_termination": "সুবিধাজনক চুক্তি বাতিল",
         "client_may_withhold": "টাকা আটকে রাখার সুযোগ",
@@ -264,6 +269,7 @@
         "payment_trigger": "পরিশোধের ট্রিগার",
         "playbook_max_days": "প্লেবুকের সর্বোচ্চ দিন",
         "playbook_preference": "প্লেবুকের মেধাস্বত্ব পছন্দ",
+        "reason": "কারণ",
         "references_defined_losses": "সংজ্ঞায়িত ক্ষতির উল্লেখ",
         "require_cap": "দায়সীমা আবশ্যক",
         "require_pay_work_done": "সম্পন্ন কাজের মূল্য আবশ্যক",
@@ -358,11 +364,17 @@
           "unspecified": "উল্লেখ নেই"
         },
         "playbook_preference": {
-          "license_only": "শুধুমাত্র লাইসেন্স হিসেবে",
-          "on_creation": "কাজ তৈরির সাথে সাথে",
-          "on_delivery": "ডেলিভারির পর",
-          "on_full_payment": "সম্পূর্ণ পরিশোধের পর",
-          "unspecified": "উল্লেখ নেই"
+          "license_only": "মালিকানা আপনার থাকবে এবং ক্লায়েন্ট কেবল ব্যবহারের লাইসেন্স পাবে",
+          "no_requirement": "মেধাস্বত্ব সংক্রান্ত নির্দিষ্ট কোনো শর্ত নেই",
+          "transfer_after_full_payment": "সম্পূর্ণ মূল্য পরিশোধের পর মালিকানা হস্তান্তর",
+          "transfer_on_delivery": "ডেলিভারির সময় মালিকানা হস্তান্তর"
+        },
+        "reason": {
+          "no_liability_clause": "চুক্তিতে দায়বদ্ধতা বা ক্ষতিপূরণের সীমা সংক্রান্ত কোনো শর্ত পাওয়া যায়নি।",
+          "no_payment_clause": "চুক্তিতে পারিশ্রমিক পরিশোধ সংক্রান্ত কোনো শর্ত পাওয়া যায়নি।",
+          "unspecified_days_to_pay": "চুক্তিতে পারিশ্রমিক পরিশোধের সময়সীমা উল্লেখ করা হয়নি।",
+          "unspecified_liability_cap": "চুক্তিতে দায়বদ্ধতার নির্দিষ্ট সীমা উল্লেখ করা হয়নি।",
+          "unspecified_liability_cap_multiple": "চুক্তিতে পারিশ্রমিকের গুণিতক হিসেবে দায়ের সীমা উল্লেখ করা হয়নি।"
         },
         "references_defined_losses": {
           "no": "না",
@@ -375,11 +387,11 @@
           "unspecified": "উল্লেখ নেই"
         },
         "transfer_timing": {
-          "license_only": "শুধুমাত্র লাইসেন্স হিসেবে",
-          "on_creation": "কাজ তৈরির সাথে সাথে",
-          "on_delivery": "ডেলিভারির পর",
-          "on_full_payment": "সম্পূর্ণ পরিশোধের পর",
-          "unspecified": "উল্লেখ নেই"
+          "license_only": "ক্লায়েন্ট কেবল ব্যবহারের লাইসেন্স পাবে",
+          "on_creation": "কাজ তৈরির সাথে সাথেই মালিকানা হস্তান্তর",
+          "on_delivery": "ডেলিভারির সময় মালিকানা হস্তান্তর",
+          "on_full_payment": "সম্পূর্ণ মূল্য পরিশোধের পর মালিকানা হস্তান্তর",
+          "unspecified": "নির্দিষ্ট নয়"
         },
         "written_change_order_required": {
           "no": "আবশ্যক নয়",
@@ -427,7 +439,7 @@
       },
       "IP-1": {
         "title": "সম্পূর্ণ মূল্য পরিশোধের আগেই মেধাস্বত্ব হস্তান্তর",
-        "vsLine": "আপনার নিয়ম: {playbook_preference} মালিকানা হস্তান্তর। চুক্তি: {transfer_timing} মালিকানা হস্তান্তর।",
+        "vsLine": "আপনার নিয়ম: {playbook_preference}। চুক্তি: {transfer_timing}।",
         "reason": "সম্পূর্ণ পারিশ্রমিক পাওয়ার আগেই কাজের মালিকানা হস্তান্তর করলে ক্লায়েন্ট পেমেন্ট না দিলেও আইনি অধিকার কমে যায়।",
         "recommendation": "সম্পূর্ণ পারিশ্রমিক পাওয়ার পরই কেবল মেধাস্বত্ব হস্তান্তর কার্যকর হবে—এই শর্ত যুক্ত করতে বলুন।",
         "uncertainty": null,
