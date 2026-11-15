@@ -47,3 +47,19 @@ export function getExtractionErrorMessage(
   }
   return dict.unknown;
 }
+
+/**
+ * Maps an analysis error code to its localized user-facing message.
+ * Always returns a localized dictionary message; unknown codes map to generic fallback.
+ * Never exposes raw error codes or raw server error text.
+ */
+export function getAnalysisErrorMessage(
+  code: string | null | undefined,
+  locale: Locale,
+): string {
+  const dict = getMessages(locale).findingsPane.errorCodes;
+  if (code && Object.prototype.hasOwnProperty.call(dict, code)) {
+    return dict[code as keyof typeof dict];
+  }
+  return dict.unknown;
+}

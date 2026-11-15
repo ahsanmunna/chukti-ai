@@ -47,6 +47,10 @@ export interface ClauseDto {
   verbatim_verified: boolean;
   extraction_confidence: "low" | "medium" | "high";
   page_mismatch: boolean;
+  facts?: Record<string, unknown> | null;
+  facts_evidence?: string | null;
+  facts_verified?: boolean;
+  facts_prompt_version?: string | null;
   created_at?: string;
 }
 
@@ -130,7 +134,7 @@ export async function extractDocumentClauses(
       const { data: origClauses, error: origClausesError } = await supabase
         .from("clauses")
         .select(
-          "clause_type, verbatim_text, page_number, char_start, char_end, verbatim_verified, extraction_confidence, page_mismatch",
+          "clause_type, verbatim_text, page_number, char_start, char_end, verbatim_verified, extraction_confidence, page_mismatch, facts, facts_evidence, facts_verified, facts_prompt_version",
         )
         .eq("run_id", cachedRun.id)
         .order("page_number", { ascending: true })
@@ -154,13 +158,17 @@ export async function extractDocumentClauses(
           verbatim_verified: c.verbatim_verified ?? true,
           extraction_confidence: c.extraction_confidence,
           page_mismatch: c.page_mismatch ?? false,
+          facts: c.facts ?? null,
+          facts_evidence: c.facts_evidence ?? null,
+          facts_verified: c.facts_verified ?? false,
+          facts_prompt_version: c.facts_prompt_version ?? null,
         }));
 
         const { data: inserted, error: insertError } = await supabase
           .from("clauses")
           .insert(rowsToInsert)
           .select(
-            "id, document_id, run_id, clause_type, verbatim_text, page_number, char_start, char_end, verbatim_verified, extraction_confidence, page_mismatch, created_at",
+            "id, document_id, run_id, clause_type, verbatim_text, page_number, char_start, char_end, verbatim_verified, extraction_confidence, page_mismatch, facts, facts_evidence, facts_verified, facts_prompt_version, created_at",
           );
 
         if (insertError) {
@@ -187,15 +195,22 @@ export async function extractDocumentClauses(
     }
   }
 
-  // 3. Local rate limit: count non-cached runs started in the last 60 minutes
+  // 3. Local rate limit: count non-cached extraction_runs AND facts_runs started in the last 60 minutes
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count: hourlyCount, error: countError } = await supabase
-    .from("extraction_runs")
-    .select("id", { count: "exact", head: true })
-    .is("cached_from_run_id", null)
-    .gte("started_at", oneHourAgo);
+  const [extractCountRes, factsCountRes] = await Promise.all([
+    supabase
+      .from("extraction_runs")
+      .select("id", { count: "exact", head: true })
+      .is("cached_from_run_id", null)
+      .gte("started_at", oneHourAgo),
+    supabase
+      .from("facts_runs")
+      .select("id", { count: "exact", head: true })
+      .gte("started_at", oneHourAgo),
+  ]);
 
-  if (!countError && hourlyCount !== null && hourlyCount >= maxPerHour) {
+  const totalHourly = (extractCountRes.count ?? 0) + (factsCountRes.count ?? 0);
+  if (totalHourly >= maxPerHour) {
     throw new ExtractionServiceError(
       "rate_limited_local",
       "Local extraction hourly limit exceeded. Please wait before running another extraction.",
@@ -336,7 +351,7 @@ export async function extractDocumentClauses(
         .from("clauses")
         .insert(rowsToInsert)
         .select(
-          "id, document_id, run_id, clause_type, verbatim_text, page_number, char_start, char_end, verbatim_verified, extraction_confidence, page_mismatch, created_at",
+          "id, document_id, run_id, clause_type, verbatim_text, page_number, char_start, char_end, verbatim_verified, extraction_confidence, page_mismatch, facts, facts_evidence, facts_verified, facts_prompt_version, created_at",
         );
 
       if (insertError) {
@@ -472,7 +487,7 @@ export async function getDocumentClauses(
   const { data: clauseRows, error: clausesError } = await supabase
     .from("clauses")
     .select(
-      "id, document_id, run_id, clause_type, verbatim_text, page_number, char_start, char_end, verbatim_verified, extraction_confidence, page_mismatch, created_at",
+      "id, document_id, run_id, clause_type, verbatim_text, page_number, char_start, char_end, verbatim_verified, extraction_confidence, page_mismatch, facts, facts_evidence, facts_verified, facts_prompt_version, created_at",
     )
     .eq("run_id", latestRun.id)
     .order("page_number", { ascending: true })

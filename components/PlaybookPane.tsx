@@ -28,6 +28,9 @@ interface PlaybookPaneProps {
   onSave: () => void;
   onExtractClauses?: () => void;
   isExtracting?: boolean;
+  hasClauses?: boolean;
+  onAnalyzeRisks?: () => void;
+  isAnalyzingRisks?: boolean;
 }
 
 export function PlaybookPane({
@@ -47,6 +50,9 @@ export function PlaybookPane({
   onSave,
   onExtractClauses,
   isExtracting = false,
+  hasClauses = false,
+  onAnalyzeRisks,
+  isAnalyzingRisks = false,
 }: PlaybookPaneProps) {
   const fields = messages.fields;
 
@@ -543,22 +549,26 @@ export function PlaybookPane({
                   {isExtracting ? messages.extractingButton : messages.extractButton}
                 </button>
 
-                {/* Disabled Risk analysis row */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-2.5">
+                {/* Risk analysis section */}
+                <div className="space-y-3 border-t border-border-subtle pt-3">
+                  {/* Privacy notice for risk analysis */}
+                  <div className="rounded border border-border-warning bg-surface-warning p-2.5 text-xs text-text-warning">
+                    <p>{messages.riskAnalysisNotice}</p>
+                  </div>
+
                   <button
                     type="button"
-                    disabled
-                    aria-describedby="risk-not-implemented-note"
-                    className="rounded-md border border-border-default bg-surface-panel px-3 py-1.5 text-xs font-semibold text-text-secondary disabled:cursor-not-allowed"
+                    onClick={onAnalyzeRisks}
+                    disabled={!documentId || Boolean(loadError) || !hasClauses || isAnalyzingRisks}
+                    className="w-full rounded-md bg-accent-primary px-4 py-2.5 text-sm font-semibold text-text-inverse hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:border disabled:border-border-default disabled:bg-surface-subtle disabled:text-text-secondary"
                   >
-                    {messages.riskAnalysisRow}
+                    {isAnalyzingRisks ? messages.analyzingRisksButton : messages.analyzeRisksButton}
                   </button>
-                  <span
-                    id="risk-not-implemented-note"
-                    className="inline-flex items-center rounded border border-border-default bg-surface-panel px-2.5 py-1 text-xs font-medium text-text-secondary"
-                  >
-                    {messages.riskAnalysisNote}
-                  </span>
+                  {!hasClauses ? (
+                    <p className="text-center text-xs text-text-muted">
+                      {messages.riskRequiresClausesNote}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </div>

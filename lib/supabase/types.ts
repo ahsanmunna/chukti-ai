@@ -129,6 +129,62 @@ export interface ClauseRow {
   page_mismatch: boolean;
   lawyer_review_required: boolean;
   raw_llm_output: Json | null;
+  facts: Json | null;
+  facts_evidence: string | null;
+  facts_verified: boolean;
+  facts_prompt_version: string | null;
+  created_at: string;
+}
+
+export type FactsRunStatus = "running" | "succeeded" | "failed";
+
+export interface DroppedFactItem {
+  clause_type: ClauseType;
+  reason: string;
+}
+
+export interface FactsRunRow {
+  id: string;
+  document_id: string;
+  extraction_run_id: string;
+  prompt_version: string;
+  model: string;
+  status: FactsRunStatus;
+  error_code: string | null;
+  started_at: string;
+  finished_at: string | null;
+  latency_ms: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  clause_count: number;
+  verified_count: number;
+  dropped: DroppedFactItem[] | Json;
+  created_at: string;
+}
+
+export interface FindingEvidenceItem {
+  clause_id: string;
+  page_number: number;
+  char_start: number;
+  char_end: number;
+  quote: string;
+}
+
+export interface FindingRow {
+  id: string;
+  document_id: string;
+  extraction_run_id: string;
+  facts_run_id: string | null;
+  rules_version: string;
+  rule_id: string;
+  severity: RiskSeverity;
+  priority: number;
+  params: Record<string, unknown> | Json;
+  clause_ids: string[];
+  evidence: FindingEvidenceItem[] | Json;
+  lawyer_review: boolean;
+  lawyer_review_reasons: string[] | Json;
+  playbook_snapshot: Json;
   created_at: string;
 }
 
