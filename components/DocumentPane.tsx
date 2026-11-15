@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DocumentMetadataDto, DocumentPageDto } from "@/lib/documents/types";
 import type { Locale, Messages } from "@/lib/i18n";
 import { getUploadErrorMessage } from "@/lib/ui/messages";
@@ -17,6 +17,13 @@ export interface DocumentUploadError {
   message?: string;
 }
 
+export interface SelectedClauseRange {
+  id: string;
+  page_number: number;
+  char_start: number;
+  char_end: number;
+}
+
 interface DocumentPaneProps {
   messages: Messages["documentPane"];
   locale: Locale;
@@ -29,6 +36,7 @@ interface DocumentPaneProps {
     document: DocumentMetadataDto;
     pages: DocumentPageDto[];
   } | null;
+  selectedClause?: SelectedClauseRange | null;
   onFileSelected: (file: File) => void;
   onReset: () => void;
 }
@@ -42,24 +50,50 @@ export function DocumentPane({
   uploadingFilename,
   error,
   documentData,
+  selectedClause,
   onFileSelected,
   onReset,
 }: DocumentPaneProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [activePage, setActivePage] = useState(1);
+  const [userPage, setUserPage] = useState<number | null>(null);
+  const [prevClauseId, setPrevClauseId] = useState<string | null>(null);
+
+  if (selectedClause && selectedClause.id !== prevClauseId) {
+    setPrevClauseId(selectedClause.id);
+    setUserPage(selectedClause.page_number);
+  }
+
+  const activePage = userPage ?? 1;
+
+  useEffect(() => {
+    if (selectedClause) {
+      const frameId = requestAnimationFrame(() => {
+        const markEl = document.getElementById("highlighted-clause");
+        if (markEl) {
+          markEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        } else {
+          const pageEl = document.getElementById(`contract-page-${selectedClause.page_number}`);
+          if (pageEl) {
+            pageEl.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+      });
+      return () => cancelAnimationFrame(frameId);
+    }
+  }, [selectedClause]);
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) {
       return;
     }
     const file = files[0];
-    setActivePage(1);
+    setUserPage(1);
     onFileSelected(file);
   };
 
   const jumpToPage = (pageNumber: number) => {
-    setActivePage(pageNumber);
+    setUserPage(pageNumber);
     const el = document.getElementById(`contract-page-${pageNumber}`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -121,7 +155,7 @@ export function DocumentPane({
             <button
               type="button"
               onClick={() => {
-                setActivePage(1);
+                setUserPage(1);
                 onReset();
               }}
               className="shrink-0 rounded-md border border-border-default bg-surface-panel px-3 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-subtle"
@@ -188,7 +222,33 @@ export function DocumentPane({
                 </h3>
               </header>
               <div className="font-serif-contract whitespace-pre-wrap break-words text-[15px] leading-7 text-text-primary">
-                {page.text.length > 0 ? page.text : messages.emptyPageText}
+                {page.text.length === 0 ? (
+                  messages.emptyPageText
+                ) : selectedClause && selectedClause.page_number === page.page_number ? (
+                  (() => {
+                    const text = page.text;
+                    const start = Math.max(0, Math.min(selectedClause.char_start, text.length));
+                    const end = Math.max(start, Math.min(selectedClause.char_end, text.length));
+                    const before = text.slice(0, start);
+                    const match = text.slice(start, end);
+                    const after = text.slice(end);
+
+                    return (
+                      <>
+                        {before}
+                        <mark
+                          id="highlighted-clause"
+                          className="rounded-xs border-b-2 border-accent-primary bg-accent-soft text-text-primary underline decoration-accent-primary decoration-2 underline-offset-4"
+                        >
+                          {match}
+                        </mark>
+                        {after}
+                      </>
+                    );
+                  })()
+                ) : (
+                  page.text
+                )}
               </div>
             </article>
           ))}

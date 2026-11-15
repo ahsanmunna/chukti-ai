@@ -9,8 +9,10 @@ const serverEnvSchema = publicEnvSchema.extend({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
   DATABASE_URL: z.string().min(1).optional(),
   LLM_PROVIDER: z.enum(["gemini"]).default("gemini"),
-  LLM_MODEL: z.string().min(1).default("gemini-2.5-flash"),
+  LLM_MODEL: z.string().min(1).default("gemini-3.6-flash"),
+  LLM_FALLBACK_MODEL: z.string().min(1).optional(),
   GEMINI_API_KEY: z.string().min(1).optional(),
+  EXTRACT_MAX_PER_HOUR: z.coerce.number().int().positive().default(30),
 });
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
@@ -42,7 +44,9 @@ export function getServerEnv(): ServerEnv {
     DATABASE_URL: process.env.DATABASE_URL || undefined,
     LLM_PROVIDER: process.env.LLM_PROVIDER || undefined,
     LLM_MODEL: process.env.LLM_MODEL || undefined,
+    LLM_FALLBACK_MODEL: process.env.LLM_FALLBACK_MODEL || undefined,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || undefined,
+    EXTRACT_MAX_PER_HOUR: process.env.EXTRACT_MAX_PER_HOUR || undefined,
   });
 }
 

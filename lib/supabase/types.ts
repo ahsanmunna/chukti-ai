@@ -19,14 +19,42 @@ export type ClauseType =
   | "liability"
   | "payment"
   | "indemnity"
-  | "ip"
+  | "ip_ownership"
   | "termination"
+  | "scope_change"
   | "governing_law"
-  | "scope"
-  | "other";
+  | "definition";
 
 export type RiskSeverity = "low" | "medium" | "high" | "critical";
 export type UserDecision = "pending" | "approved" | "rejected" | "edited";
+
+export type ExtractionRunStatus = "running" | "succeeded" | "failed";
+
+export interface RejectedQuoteItem {
+  clause_type: ClauseType;
+  reason: "too_short" | "too_long" | "not_found";
+  quote_length: number;
+}
+
+export interface ExtractionRunRow {
+  id: string;
+  document_id: string;
+  sha256: string;
+  prompt_version: string;
+  model: string;
+  status: ExtractionRunStatus;
+  error_code: string | null;
+  started_at: string;
+  finished_at: string | null;
+  latency_ms: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  proposed_count: number;
+  accepted_count: number;
+  rejected: RejectedQuoteItem[] | Json;
+  cached_from_run_id: string | null;
+  created_at: string;
+}
 
 export interface DocumentRow {
   id: string;
@@ -89,6 +117,7 @@ export interface PlaybookRow {
 export interface ClauseRow {
   id: string;
   document_id: string;
+  run_id: string | null;
   clause_type: ClauseType;
   verbatim_text: string;
   page_number: number;
@@ -96,6 +125,8 @@ export interface ClauseRow {
   char_end: number | null;
   verbatim_verified: boolean;
   confidence: number | null;
+  extraction_confidence: "low" | "medium" | "high" | null;
+  page_mismatch: boolean;
   lawyer_review_required: boolean;
   raw_llm_output: Json | null;
   created_at: string;

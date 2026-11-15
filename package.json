@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "llm:models": "node --env-file=.env.local scripts/list-llm-models.ts",
+    "llm:check": "node --env-file=.env.local scripts/llm-check.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
