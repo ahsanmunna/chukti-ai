@@ -539,7 +539,7 @@ export function ContractWorkspace() {
               {/* Right pane inner switch: Playbook | Clauses */}
               <div
                 role="tablist"
-                aria-label={messages.tabs.groupLabel}
+                aria-label={messages.tabs.rightPaneLabel}
                 className="grid grid-cols-2 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1"
               >
                 <button

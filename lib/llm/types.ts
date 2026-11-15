@@ -3,7 +3,8 @@ export type LlmErrorCode =
   | "llm_rate_limited"
   | "llm_unavailable"
   | "llm_invalid_output"
-  | "llm_blocked";
+  | "llm_blocked"
+  | "llm_bad_request";
 
 export class LlmError extends Error {
   readonly code: LlmErrorCode;

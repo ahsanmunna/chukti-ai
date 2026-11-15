@@ -60,7 +60,8 @@ export async function extractDocumentClauses(
 ): Promise<ExtractionResponseDto> {
   const supabase = createSupabaseAdminClient();
   const env = getServerEnv();
-  const model = env.LLM_MODEL;
+  const primaryModel = env.LLM_MODEL;
+  const fallbackModel = env.LLM_FALLBACK_MODEL;
   const maxPerHour = env.EXTRACT_MAX_PER_HOUR;
   const promptVersion = EXTRACTION_PROMPT_VERSION;
 
@@ -81,14 +82,19 @@ export async function extractDocumentClauses(
 
   const sha256 = doc.sha256 ?? "";
 
-  // 2. Check for succeeded run cache hit for (sha256, prompt_version, model)
+  // 2. Check for succeeded run cache hit for (sha256, prompt_version, model: primary OR fallback)
   if (sha256) {
+    const modelsToMatch = [primaryModel];
+    if (fallbackModel && fallbackModel !== primaryModel) {
+      modelsToMatch.push(fallbackModel);
+    }
+
     const { data: cachedRun, error: cacheLookupError } = await supabase
       .from("extraction_runs")
       .select("id, model, proposed_count, accepted_count, rejected")
       .eq("sha256", sha256)
       .eq("prompt_version", promptVersion)
-      .eq("model", model)
+      .in("model", modelsToMatch)
       .eq("status", "succeeded")
       .order("started_at", { ascending: false })
       .limit(1)
@@ -102,7 +108,7 @@ export async function extractDocumentClauses(
           document_id: documentId,
           sha256,
           prompt_version: promptVersion,
-          model,
+          model: cachedRun.model,
           status: "succeeded",
           started_at: new Date().toISOString(),
           finished_at: new Date().toISOString(),
@@ -199,6 +205,19 @@ export async function extractDocumentClauses(
 
   // 4. In-progress check: if a 'running' run started < 3 minutes ago
   const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+
+  // Mark stale running runs older than 3 minutes as failed
+  await supabase
+    .from("extraction_runs")
+    .update({
+      status: "failed",
+      error_code: "stale",
+      finished_at: new Date().toISOString(),
+    })
+    .eq("document_id", documentId)
+    .eq("status", "running")
+    .lt("started_at", threeMinutesAgo);
+
   const { data: runningRuns, error: runningError } = await supabase
     .from("extraction_runs")
     .select("id")
@@ -223,14 +242,30 @@ export async function extractDocumentClauses(
       document_id: documentId,
       sha256,
       prompt_version: promptVersion,
-      model,
+      model: primaryModel,
       status: "running",
       started_at: new Date(startTime).toISOString(),
     })
     .select("id")
     .single();
 
-  if (createError || !createdRun) {
+  if (createError) {
+    if (
+      createError.code === "23505" ||
+      (typeof createError.message === "string" && createError.message.includes("23505")) ||
+      (typeof createError.details === "string" && createError.details.includes("idx_extraction_runs_running_unique"))
+    ) {
+      throw new ExtractionServiceError(
+        "extraction_in_progress",
+        "An extraction is already running for this document.",
+        409,
+      );
+    }
+    console.error(`[extract] run_create_failed id=${documentId}`, createError);
+    throw new ExtractionServiceError("database_error", "Failed to initialize extraction run.", 500);
+  }
+
+  if (!createdRun) {
     console.error(`[extract] run_create_failed id=${documentId}`);
     throw new ExtractionServiceError("database_error", "Failed to initialize extraction run.", 500);
   }
@@ -313,11 +348,13 @@ export async function extractDocumentClauses(
     }
 
     const latencyMs = Date.now() - startTime;
+    const actualModel = llmResult.model;
 
     // 10. Mark run succeeded
     const { error: updateError } = await supabase
       .from("extraction_runs")
       .update({
+        model: actualModel,
         status: "succeeded",
         finished_at: new Date().toISOString(),
         latency_ms: latencyMs,
@@ -335,13 +372,13 @@ export async function extractDocumentClauses(
 
     runFinalized = true;
     console.log(
-      `[extract] succeeded doc=${documentId} run=${runId} proposed=${parsed.data.clauses.length} accepted=${accepted.length} rejected=${rejected.length} latency=${latencyMs}ms`,
+      `[extract] succeeded doc=${documentId} run=${runId} model=${actualModel} proposed=${parsed.data.clauses.length} accepted=${accepted.length} rejected=${rejected.length} latency=${latencyMs}ms`,
     );
 
     return {
       run: {
         id: runId,
-        model,
+        model: actualModel,
         cached: false,
         proposed_count: parsed.data.clauses.length,
         accepted_count: accepted.length,

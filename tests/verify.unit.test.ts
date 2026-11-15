@@ -172,6 +172,64 @@ describe("D. Verifier: buildSearchKey and findQuote", () => {
     expect(match).toEqual({ reason: "not_found" });
   });
 
+  it("matches 'termi-\\nnation' to 'termination' with drop mode and round-trips offsets", () => {
+    const pageText =
+      "This contract permits immediate termi-\nnation upon thirty days prior written notice.";
+    const quote = "immediate termination upon thirty days prior written notice.";
+    const pageKey = {
+      page_number: 1,
+      text: pageText,
+      dropKey: buildSearchKey(pageText, "drop"),
+      keepKey: buildSearchKey(pageText, "keep"),
+    };
+
+    const match = findQuote([pageKey], quote, 1);
+    expect("reason" in match).toBe(false);
+    if (!("reason" in match)) {
+      expect(match.page_number).toBe(1);
+      const slice = pageText.slice(match.char_start, match.char_end);
+      expect(slice).toBe("immediate termi-\nnation upon thirty days prior written notice.");
+      expect(buildSearchKey(slice, "drop").key).toBe(buildSearchKey(quote).key);
+    }
+  });
+
+  it("matches 'forty-\\nfive' to 'forty-five' with keep mode and round-trips offsets", () => {
+    const pageText =
+      "Invoices are payable within forty-\nfive calendar days of receipt by the client.";
+    const quote = "Invoices are payable within forty-five calendar days of receipt by the client.";
+    const pageKey = {
+      page_number: 1,
+      text: pageText,
+      dropKey: buildSearchKey(pageText, "drop"),
+      keepKey: buildSearchKey(pageText, "keep"),
+    };
+
+    const match = findQuote([pageKey], quote, 1);
+    expect("reason" in match).toBe(false);
+    if (!("reason" in match)) {
+      expect(match.page_number).toBe(1);
+      const slice = pageText.slice(match.char_start, match.char_end);
+      expect(slice).toBe("Invoices are payable within forty-\nfive calendar days of receipt by the client.");
+      expect(buildSearchKey(slice, "keep").key).toBe(buildSearchKey(quote).key);
+    }
+  });
+
+  it("still rejects paraphrased quotes even with ambiguous hyphenation", () => {
+    const pageText =
+      "Invoices are payable within forty-\nfive calendar days of receipt by the client.";
+    const paraphrase =
+      "All invoices must be settled in forty-five days after client receipt.";
+    const pageKey = {
+      page_number: 1,
+      text: pageText,
+      dropKey: buildSearchKey(pageText, "drop"),
+      keepKey: buildSearchKey(pageText, "keep"),
+    };
+
+    const match = findQuote([pageKey], paraphrase, 1);
+    expect(match).toEqual({ reason: "not_found" });
+  });
+
   it("deduplicates identical (type, page, start, end) clauses in verifyClauses", () => {
     const pageText =
       "In no event shall either party's aggregate liability exceed the total fees paid under this agreement.";

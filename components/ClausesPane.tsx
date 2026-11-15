@@ -36,8 +36,7 @@ export function ClausesPane({
 }: ClausesPaneProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
-  const toggleExpand = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -244,78 +243,75 @@ export function ClausesPane({
                         : clause.verbatim_text;
 
                     return (
-                      <button
+                      <div
                         key={clause.id}
-                        type="button"
-                        aria-pressed={isSelected}
-                        onClick={() => onSelectClause(clause)}
-                        className={`w-full rounded-md border p-3.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none ${
+                        className={`w-full rounded-md border p-3.5 text-left transition-colors ${
                           isSelected
                             ? "border-accent-primary bg-accent-soft shadow-xs"
                             : "border-border-default bg-surface-canvas hover:border-border-strong hover:bg-surface-subtle"
                         }`}
                       >
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                          <span className="inline-flex items-center rounded border border-border-default bg-surface-panel px-2 py-0.5 text-xs font-semibold text-text-primary">
-                            {messages.pageLabel} {clause.page_number}
-                          </span>
-
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 rounded border border-border-success bg-surface-success px-2 py-0.5 text-[11px] font-semibold text-text-success">
-                              <svg
-                                aria-hidden="true"
-                                viewBox="0 0 16 16"
-                                fill="currentColor"
-                                className="h-3 w-3 shrink-0"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"
-                                />
-                              </svg>
-                              <span>{messages.verifiedBadge}</span>
+                        <button
+                          type="button"
+                          aria-pressed={isSelected}
+                          onClick={() => onSelectClause(clause)}
+                          className="w-full text-left rounded focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                        >
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <span className="inline-flex items-center rounded border border-border-default bg-surface-panel px-2 py-0.5 text-xs font-semibold text-text-primary">
+                              {messages.pageLabel} {clause.page_number}
                             </span>
 
-                            {clause.extraction_confidence === "low" ? (
-                              <span className="inline-flex items-center gap-1 rounded border border-border-warning bg-surface-warning px-2 py-0.5 text-[11px] font-semibold text-text-warning">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="inline-flex items-center gap-1 rounded border border-border-success bg-surface-success px-2 py-0.5 text-[11px] font-semibold text-text-success">
                                 <svg
                                   aria-hidden="true"
                                   viewBox="0 0 16 16"
                                   fill="currentColor"
                                   className="h-3 w-3 shrink-0"
                                 >
-                                  <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
-                                  <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z" />
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"
+                                  />
                                 </svg>
-                                <span>{messages.lowConfidenceBadge}</span>
+                                <span>{messages.verifiedBadge}</span>
                               </span>
-                            ) : null}
-                          </div>
-                        </div>
 
-                        <div className="font-serif-contract whitespace-pre-wrap break-words text-sm leading-relaxed text-text-primary">
-                          {displayText}
-                        </div>
+                              {clause.extraction_confidence === "low" ? (
+                                <span className="inline-flex items-center gap-1 rounded border border-border-warning bg-surface-warning px-2 py-0.5 text-[11px] font-semibold text-text-warning">
+                                  <svg
+                                    aria-hidden="true"
+                                    viewBox="0 0 16 16"
+                                    fill="currentColor"
+                                    className="h-3 w-3 shrink-0"
+                                  >
+                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+                                    <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z" />
+                                  </svg>
+                                  <span>{messages.lowConfidenceBadge}</span>
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="font-serif-contract whitespace-pre-wrap break-words text-sm leading-relaxed text-text-primary">
+                            {displayText}
+                          </div>
+                        </button>
 
                         {shouldTruncate ? (
                           <div className="mt-2 text-right">
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onClick={(e) => toggleExpand(clause.id, e)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  toggleExpand(clause.id, e as unknown as React.MouseEvent);
-                                }
-                              }}
-                              className="text-xs font-semibold text-accent-primary hover:underline focus-visible:ring-1 focus-visible:ring-accent-primary focus:outline-none"
+                            <button
+                              type="button"
+                              onClick={() => toggleExpand(clause.id)}
+                              className="rounded text-xs font-semibold text-accent-primary hover:underline focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                             >
                               {isExpanded ? messages.showLess : messages.showMore}
-                            </span>
+                            </button>
                           </div>
                         ) : null}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

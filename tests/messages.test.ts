@@ -152,6 +152,7 @@ describe("F3 extraction error messages", () => {
     );
 
     const genericCodes = [
+      "llm_bad_request",
       "invalid_id",
       "not_found",
       "internal_error",
@@ -168,6 +169,7 @@ describe("F3 extraction error messages", () => {
   });
 
   it("returns natural Bangla copy for extraction error codes without technical jargon", () => {
+    expect(getExtractionErrorMessage("llm_bad_request", "bn")).toContain("সমস্যা");
     expect(getExtractionErrorMessage("llm_not_configured", "bn")).toContain("কনফিগার");
     expect(getExtractionErrorMessage("llm_rate_limited", "bn")).toContain("ব্যস্ত");
     expect(getExtractionErrorMessage("llm_unavailable", "bn")).toContain("অনুপলব্ধ");
@@ -216,6 +218,8 @@ describe("F8 dictionary parity check", () => {
     expect(enKeys).toEqual(bnKeys);
     expect(enKeys).not.toContain("header.phaseLabel");
     expect(enKeys).toContain("tabs.groupLabel");
+    expect(enKeys).toContain("tabs.rightPaneLabel");
+    expect(enKeys).toContain("clausesPane.errorCodes.llm_bad_request");
     expect(enKeys).toContain("documentPane.demoNotice");
     expect(enKeys).toContain("playbookPane.loadErrorTitle");
     expect(enKeys).toContain("playbookPane.retryButton");

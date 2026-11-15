@@ -28,5 +28,6 @@ export function getLlmClient(): LlmClient {
   return new GeminiLlmClient({
     apiKey: env.GEMINI_API_KEY,
     model: env.LLM_MODEL,
+    fallbackModel: env.LLM_FALLBACK_MODEL,
   });
 }

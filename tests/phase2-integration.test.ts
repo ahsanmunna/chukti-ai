@@ -27,6 +27,7 @@ function loadLocalEnvIfPresent() {
 
 class FakeLlmClient implements LlmClient {
   public callCount = 0;
+  public delayMs = 0;
   public cannedClauses: Array<{
     clause_type: string;
     quote: string;
@@ -38,13 +39,16 @@ class FakeLlmClient implements LlmClient {
   async generateJson<T = unknown>(options: GenerateJsonOptions): Promise<GenerateJsonResult<T>> {
     void options;
     this.callCount++;
+    if (this.delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    }
     if (this.failureError) {
       throw this.failureError;
     }
     return {
       json: { clauses: this.cannedClauses } as T,
       usage: { inputTokens: 250, outputTokens: 110 },
-      model: "fake-test-model",
+      model: process.env.LLM_MODEL || "gemini-3.6-flash",
     };
   }
 }
@@ -73,6 +77,7 @@ describe("Phase 2 API integration (Supabase DB + LLM Extraction + Verifier + Cac
 
   afterEach(() => {
     fakeLlm.callCount = 0;
+    fakeLlm.delayMs = 0;
     fakeLlm.cannedClauses = [];
     fakeLlm.failureError = null;
   });
@@ -416,5 +421,43 @@ describe("Phase 2 API integration (Supabase DB + LLM Extraction + Verifier + Cac
     if (json.clauses[0].page_number === json.clauses[1].page_number) {
       expect(json.clauses[0].char_start).toBeLessThanOrEqual(json.clauses[1].char_start);
     }
+  });
+
+  it("returns 409 extraction_in_progress when a concurrent extraction POST is made while a run is running", async () => {
+    const { id: docId } = await uploadTestDoc("concurrent-test.pdf");
+    const admin = createSupabaseAdminClient();
+    const uniqueSha = `concurrent-sha-${crypto.randomUUID()}`;
+    await admin.from("documents").update({ sha256: uniqueSha }).eq("id", docId);
+
+    // Controllable delay in LLM client so first run stays in 'running' state
+    fakeLlm.delayMs = 300;
+    fakeLlm.cannedClauses = [
+      {
+        clause_type: "liability",
+        quote: "aggregate liability under this agreement shall not exceed one (1.0) times fees paid",
+        page_hint: 1,
+        confidence: "high",
+      },
+    ];
+
+    const firstReqPromise = extractClauses(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/extract`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+
+    // Give first request a short moment to insert 'running' row into DB
+    await new Promise((r) => setTimeout(r, 60));
+
+    const secondReqPromise = extractClauses(
+      new NextRequest(`http://localhost:3000/api/documents/${docId}/extract`, { method: "POST" }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+
+    const [firstRes, secondRes] = await Promise.all([firstReqPromise, secondReqPromise]);
+
+    expect(firstRes.status).toBe(200);
+    expect(secondRes.status).toBe(409);
+    const secondJson = await secondRes.json();
+    expect(secondJson.error?.code).toBe("extraction_in_progress");
   });
 });

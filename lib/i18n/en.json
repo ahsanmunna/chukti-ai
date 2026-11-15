@@ -12,6 +12,7 @@
   },
   "tabs": {
     "groupLabel": "Workspace sections",
+    "rightPaneLabel": "Contract analysis sections",
     "document": "Contract document",
     "playbook": "Playbook",
     "clauses": "Clauses"
@@ -154,6 +155,7 @@
       "definition": "Definition"
     },
     "errorCodes": {
+      "llm_bad_request": "Something went wrong on our side. Please try again.",
       "llm_not_configured": "The AI service is not configured. Please contact support or check server settings.",
       "llm_rate_limited": "The AI service is currently busy. Please wait a moment and try again.",
       "llm_unavailable": "The AI service is temporarily unavailable. Please try again shortly.",

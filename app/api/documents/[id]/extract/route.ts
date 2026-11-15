@@ -33,6 +33,7 @@ export async function POST(
         llm_unavailable: 503,
         llm_invalid_output: 502,
         llm_blocked: 422,
+        llm_bad_request: 502,
       };
       const status = statusMap[error.code] ?? 500;
       return jsonError(status, error.code, error.message);

@@ -17,10 +17,14 @@ export interface SearchKeyResult {
   elements: MappedElement[];
 }
 
+export type HyphenMode = "drop" | "keep";
+
 export interface PageKeyData {
   page_number: number;
   text: string;
-  searchKey: SearchKeyResult;
+  dropKey?: SearchKeyResult;
+  keepKey?: SearchKeyResult;
+  searchKey?: SearchKeyResult;
 }
 
 const ZERO_WIDTH_AND_SOFT_HYPHEN = /[\u00AD\u200B-\u200D\uFEFF\u200E\u200F\u202A-\u202E]/;
@@ -33,12 +37,14 @@ const ZERO_WIDTH_AND_SOFT_HYPHEN = /[\u00AD\u200B-\u200D\uFEFF\u200E\u200F\u202A
  * 1. NFKC normalization per code point (when one original char expands, map all to that original index)
  * 2. Remove soft hyphens (U+00AD) and zero-width characters
  * 3. Unify curly single/double quotes to straight, en/em dashes and U+2212 to "-"
- * 4. Remove a hyphen immediately followed by a line break and a lowercase letter (de-hyphenation)
+ * 4. Line-end de-hyphenation:
+ *    - "drop": remove a hyphen immediately followed by a line break and a lowercase letter
+ *    - "keep": keep the hyphen, remove only the line break
  * 5. Turn NBSP and every run of Unicode whitespace into one space
  * 6. Trim leading and trailing spaces
  * Case-sensitive. Pure function, no IO.
  */
-export function buildSearchKey(text: string): SearchKeyResult {
+export function buildSearchKey(text: string, hyphenMode: HyphenMode = "drop"): SearchKeyResult {
   const initial: MappedElement[] = [];
 
   for (let i = 0; i < text.length; ) {
@@ -100,7 +106,7 @@ export function buildSearchKey(text: string): SearchKeyResult {
     i += len;
   }
 
-  // De-hyphenation: remove a hyphen immediately followed by a line break and a lowercase letter
+  // Line-end de-hyphenation
   const dehyphenated: MappedElement[] = [];
   for (let j = 0; j < initial.length; ) {
     const cur = initial[j];
@@ -121,7 +127,9 @@ export function buildSearchKey(text: string): SearchKeyResult {
       if (nlLen > 0 && j + 1 + nlLen < initial.length) {
         const nextChar = initial[j + 1 + nlLen].char;
         if (/\p{Ll}/u.test(nextChar)) {
-          // Skip hyphen and newline
+          if (hyphenMode === "keep") {
+            dehyphenated.push(cur);
+          }
           j += 1 + nlLen;
           continue;
         }
@@ -207,12 +215,20 @@ export function findQuote(
   const matches: Array<{
     page: PageKeyData;
     matchIndex: number;
+    matchedKey: SearchKeyResult;
   }> = [];
 
   for (const page of sortedPages) {
-    const idx = page.searchKey.key.indexOf(quoteKey);
-    if (idx !== -1) {
-      matches.push({ page, matchIndex: idx });
+    const drop = page.dropKey ?? page.searchKey ?? buildSearchKey(page.text, "drop");
+    const dropIdx = drop.key.indexOf(quoteKey);
+    if (dropIdx !== -1) {
+      matches.push({ page, matchIndex: dropIdx, matchedKey: drop });
+    } else {
+      const keep = page.keepKey ?? buildSearchKey(page.text, "keep");
+      const keepIdx = keep.key.indexOf(quoteKey);
+      if (keepIdx !== -1) {
+        matches.push({ page, matchIndex: keepIdx, matchedKey: keep });
+      }
     }
   }
 
@@ -228,8 +244,8 @@ export function findQuote(
   const kStart = preferred.matchIndex;
   const kEnd = kStart + quoteKey.length;
 
-  const char_start = foundPage.searchKey.map[kStart];
-  const lastElem = foundPage.searchKey.elements[kEnd - 1];
+  const char_start = preferred.matchedKey.map[kStart];
+  const lastElem = preferred.matchedKey.elements[kEnd - 1];
   const char_end = lastElem.origIndex + lastElem.origLength;
   const pageMismatch = pageHint !== foundPage.page_number;
 
@@ -251,11 +267,17 @@ export function verifyClauses(
   rawClauses: RawClause[],
   pages: Array<{ page_number: number; text: string }>,
 ): VerificationResult {
-  const pageKeys: PageKeyData[] = pages.map((page) => ({
-    page_number: page.page_number,
-    text: page.text,
-    searchKey: buildSearchKey(page.text),
-  }));
+  const pageKeys: PageKeyData[] = pages.map((page) => {
+    const dropKey = buildSearchKey(page.text, "drop");
+    const keepKey = buildSearchKey(page.text, "keep");
+    return {
+      page_number: page.page_number,
+      text: page.text,
+      dropKey,
+      keepKey,
+      searchKey: dropKey,
+    };
+  });
 
   const pagesByNumber = new Map<number, { page_number: number; text: string }>();
   for (const p of pages) {
