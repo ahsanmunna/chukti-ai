@@ -1,7 +1,7 @@
 import type { PlaybookPreferences } from "@/lib/playbook/schema";
 import type { ClauseType, RiskSeverity } from "@/lib/supabase/types";
 
-export const RISK_RULES_VERSION = "v1" as const;
+export const RISK_RULES_VERSION = "v2" as const;
 
 export type RuleSource = "playbook" | "builtin";
 

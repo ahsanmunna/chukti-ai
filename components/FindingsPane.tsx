@@ -9,6 +9,11 @@ import { getAnalysisErrorMessage } from "@/lib/ui/messages";
 
 export type FindingsStatus = "idle" | "running" | "succeeded" | "error";
 
+export interface FactsSummary {
+  total_clauses: number;
+  verified_clauses: number;
+}
+
 interface FindingsPaneProps {
   messages: Messages["findingsPane"];
   locale: Locale;
@@ -24,6 +29,8 @@ interface FindingsPaneProps {
   onSelectEvidence?: (finding: FindingRow, evidenceItem: FindingEvidenceItem) => void;
   onAnalyze: () => void;
   isAnalyzing: boolean;
+  factsSummary?: FactsSummary | null;
+  initialExpandedAll?: boolean;
 }
 
 function SeverityIcon({ severity }: { severity: RiskSeverity }) {
@@ -74,10 +81,21 @@ export function FindingsPane({
   onSelectEvidence,
   onAnalyze,
   isAnalyzing,
+  factsSummary,
+  initialExpandedAll = false,
 }: FindingsPaneProps) {
-  const [expandedWhyIds, setExpandedWhyIds] = useState<Set<string>>(() => new Set());
-  const [expandedAskIds, setExpandedAskIds] = useState<Set<string>>(() => new Set());
-  const [expandedDetailsIds, setExpandedDetailsIds] = useState<Set<string>>(() => new Set());
+  const [expandedWhyIds, setExpandedWhyIds] = useState<Set<string>>(
+    () => (initialExpandedAll ? new Set(findings.map((f) => f.id)) : new Set()),
+  );
+  const [expandedAskIds, setExpandedAskIds] = useState<Set<string>>(
+    () => (initialExpandedAll ? new Set(findings.map((f) => f.id)) : new Set()),
+  );
+  const [expandedDetailsIds, setExpandedDetailsIds] = useState<Set<string>>(
+    () => (initialExpandedAll ? new Set(findings.map((f) => f.id)) : new Set()),
+  );
+  const [expandedEvidenceIds, setExpandedEvidenceIds] = useState<Set<string>>(
+    () => (initialExpandedAll ? new Set(findings.map((f) => f.id)) : new Set()),
+  );
 
   const toggleWhy = (id: string) => {
     setExpandedWhyIds((prev) => {
@@ -99,6 +117,15 @@ export function FindingsPane({
 
   const toggleDetails = (id: string) => {
     setExpandedDetailsIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleEvidence = (id: string) => {
+    setExpandedEvidenceIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -322,6 +349,14 @@ export function FindingsPane({
               })}
             </div>
 
+            {factsSummary ? (
+              <div className="pt-1 border-t border-border-subtle text-xs text-text-secondary">
+                {messages.factsConfirmed
+                  .replace("{verified}", String(factsSummary.verified_clauses))
+                  .replace("{total}", String(factsSummary.total_clauses))}
+              </div>
+            ) : null}
+
             <p className="text-[11px] text-text-muted">
               {messages.prioritizationNotice}
             </p>
@@ -501,22 +536,45 @@ export function FindingsPane({
                           {messages.evidenceTitle}
                         </span>
                         <div className="mt-1 space-y-1.5">
-                          {evidenceList.map((ev, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => {
-                                onSelectFinding(finding);
-                                onSelectEvidence?.(finding, ev);
-                              }}
-                              className="w-full rounded border border-border-subtle bg-surface-panel p-2 text-left font-serif-contract text-xs text-text-primary hover:border-accent-primary hover:bg-accent-soft focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
-                            >
-                              <span className="mb-0.5 block font-sans text-[10px] font-bold text-text-muted">
-                                {messages.pageLabel} {ev.page_number}
-                              </span>
-                              <span>&ldquo;{ev.quote}&rdquo;</span>
-                            </button>
-                          ))}
+                          {(() => {
+                            const isEvidenceExpanded = expandedEvidenceIds.has(finding.id);
+                            const visibleEvidence =
+                              isEvidenceExpanded || evidenceList.length <= 3
+                                ? evidenceList
+                                : evidenceList.slice(0, 3);
+
+                            return (
+                              <>
+                                {visibleEvidence.map((ev, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => {
+                                      onSelectFinding(finding);
+                                      onSelectEvidence?.(finding, ev);
+                                    }}
+                                    className="w-full rounded border border-border-subtle bg-surface-panel p-2 text-left font-serif-contract text-xs text-text-primary hover:border-accent-primary hover:bg-accent-soft focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                                  >
+                                    <span className="mb-0.5 block font-sans text-[10px] font-bold text-text-muted">
+                                      {messages.pageLabel} {ev.page_number}
+                                    </span>
+                                    <span>&ldquo;{ev.quote}&rdquo;</span>
+                                  </button>
+                                ))}
+                                {evidenceList.length > 3 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleEvidence(finding.id)}
+                                    className="mt-1 block text-xs font-medium text-accent-primary hover:underline focus:outline-none"
+                                  >
+                                    {isEvidenceExpanded
+                                      ? "− " + messages.moreRelatedPassages.replace("{n}", String(evidenceList.length - 3))
+                                      : messages.moreRelatedPassages.replace("{n}", String(evidenceList.length - 3))}
+                                  </button>
+                                ) : null}
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     ) : null}
@@ -534,12 +592,38 @@ export function FindingsPane({
                         </button>
                         {isDetailsExpanded ? (
                           <div className="mt-1 space-y-0.5 rounded border border-border-subtle bg-surface-subtle p-2 font-mono text-[11px] text-text-secondary">
-                            {factsUsed.map(([k, v]) => (
-                              <div key={k} className="flex justify-between gap-2">
-                                <span className="font-medium text-text-muted">{k}:</span>
-                                <span className="text-right text-text-primary">{String(v)}</span>
-                              </div>
-                            ))}
+                            {factsUsed.map(([k, v]) => {
+                              const fieldLabel =
+                                messages.factLabels?.fields?.[k as keyof typeof messages.factLabels.fields] ?? k;
+                              let displayVal = String(v);
+                              if (typeof v === "boolean") {
+                                displayVal = v ? (messages.yesLabel ?? "Yes") : (messages.noLabel ?? "No");
+                              } else if (Array.isArray(v)) {
+                                const enumMap =
+                                  messages.factLabels?.values?.[k as keyof typeof messages.factLabels.values];
+                                displayVal = v
+                                  .map((item) => {
+                                    if (typeof item === "string" && enumMap && item in enumMap) {
+                                      return (enumMap as Record<string, string>)[item];
+                                    }
+                                    return String(item);
+                                  })
+                                  .join(", ");
+                              } else if (typeof v === "string") {
+                                const enumMap =
+                                  messages.factLabels?.values?.[k as keyof typeof messages.factLabels.values];
+                                if (enumMap && v in enumMap) {
+                                  displayVal = (enumMap as Record<string, string>)[v];
+                                }
+                              }
+
+                              return (
+                                <div key={k} className="flex justify-between gap-2">
+                                  <span className="font-medium text-text-muted">{fieldLabel}:</span>
+                                  <span className="text-right text-text-primary">{displayVal}</span>
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : null}
                       </div>

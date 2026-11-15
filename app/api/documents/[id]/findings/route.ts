@@ -59,5 +59,26 @@ export async function GET(
     return orderA - orderB;
   });
 
-  return NextResponse.json({ findings }, { status: 200 });
+  // Fetch latest succeeded facts run for clause counts
+  const { data: latestFactsRun } = await supabase
+    .from("facts_runs")
+    .select("clause_count, verified_count")
+    .eq("document_id", id)
+    .eq("status", "succeeded")
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return NextResponse.json(
+    {
+      findings,
+      facts_summary: latestFactsRun
+        ? {
+            total_clauses: latestFactsRun.clause_count,
+            verified_clauses: latestFactsRun.verified_count,
+          }
+        : null,
+    },
+    { status: 200 },
+  );
 }

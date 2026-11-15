@@ -4,6 +4,14 @@ import type { ClauseType } from "@/lib/supabase/types";
 export const YES_NO_UNSPECIFIED = ["yes", "no", "unspecified"] as const;
 export type YesNoUnspecified = (typeof YES_NO_UNSPECIFIED)[number];
 
+export const CLIENT_MAY_WITHHOLD = [
+  "for_unaccepted_work",
+  "disputed_portion_only",
+  "no",
+  "unspecified",
+] as const;
+export type ClientMayWithhold = (typeof CLIENT_MAY_WITHHOLD)[number];
+
 export const PAYMENT_TRIGGERS = [
   "invoice_receipt",
   "delivery",
@@ -59,7 +67,7 @@ export interface PaymentFacts {
   currency: string | null;
   days_to_pay: number | null;
   payment_trigger: PaymentTrigger;
-  client_may_withhold: YesNoUnspecified;
+  client_may_withhold: ClientMayWithhold;
 }
 
 export interface LiabilityFacts {
@@ -121,7 +129,7 @@ export const rawFlatFactsSchema = z.object({
   currency: z.string().nullable().optional(),
   days_to_pay: z.number().int().nullable().optional(),
   payment_trigger: z.enum(PAYMENT_TRIGGERS).nullable().optional(),
-  client_may_withhold: z.enum(YES_NO_UNSPECIFIED).nullable().optional(),
+  client_may_withhold: z.enum(CLIENT_MAY_WITHHOLD).nullable().optional(),
   contractor_liability: z.enum(CONTRACTOR_LIABILITY).nullable().optional(),
   cap_multiple_of_fees: z.number().nullable().optional(),
   indemnifying_party: z.enum(INDEMNIFYING_PARTY).nullable().optional(),
@@ -158,9 +166,18 @@ export const factsResponseSchema = z.object({
 
 export type FactsResponse = z.infer<typeof factsResponseSchema>;
 
+export type DroppedFactReason =
+  | "missing_evidence"
+  | "too_short"
+  | "too_long"
+  | "not_in_clause_but_in_document"
+  | "not_in_document";
+
 export interface DroppedClauseFact {
+  clause_id: string;
   clause_type: ClauseType;
-  reason: "evidence_too_short" | "evidence_too_long" | "evidence_not_found" | "empty_evidence";
+  reason: DroppedFactReason;
+  evidence_length: number;
 }
 
 export function getDefaultFactsForType(clauseType: ClauseType): AnyClauseFacts {

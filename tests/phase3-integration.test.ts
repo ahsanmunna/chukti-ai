@@ -259,16 +259,16 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
 
     const clauses = updatedClauses as ClauseRow[];
     expect(clauses[0].facts_verified).toBe(true);
-    expect(clauses[0].facts_prompt_version).toBe("v1");
+    expect(clauses[0].facts_prompt_version).toBe("v2");
     expect(clauses[0].facts_evidence).toBe("requires a signed written change order");
 
     expect(clauses[1].facts_verified).toBe(true);
-    expect(clauses[1].facts_prompt_version).toBe("v1");
+    expect(clauses[1].facts_prompt_version).toBe("v2");
     expect(clauses[1].facts_evidence).toBe("within forty-five (45) calendar days from receipt of invoice");
 
     // Dropped clause (C3): facts_verified = false, facts_evidence = null, all fields unspecified/null
     expect(clauses[2].facts_verified).toBe(false);
-    expect(clauses[2].facts_prompt_version).toBe("v1");
+    expect(clauses[2].facts_prompt_version).toBe("v2");
     expect(clauses[2].facts_evidence).toBeNull();
     const c3Facts = clauses[2].facts as Record<string, unknown>;
     expect(c3Facts.contractor_liability).toBe("unspecified");
@@ -284,12 +284,19 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
     expect(factsRun.status).toBe("succeeded");
     expect(factsRun.clause_count).toBe(3);
     expect(factsRun.verified_count).toBe(2);
-    const droppedList = factsRun.dropped as Array<{ clause_type: string; reason: string }>;
+    const droppedList = factsRun.dropped as Array<{
+      clause_id: string;
+      clause_type: string;
+      reason: string;
+      evidence_length: number;
+    }>;
     expect(droppedList).toHaveLength(1);
+    expect(droppedList[0].clause_id).toBe(clauses[2].id);
     expect(droppedList[0].clause_type).toBe("liability");
-    expect(droppedList[0].reason).toBe("evidence_not_found");
+    expect(droppedList[0].reason).toBe("not_in_document");
+    expect(droppedList[0].evidence_length).toBeGreaterThan(0);
 
-    // Verify GET /api/documents/[id]/findings returns the same findings
+    // Verify GET /api/documents/[id]/findings returns the same findings and facts_summary
     const getFindingsRes = await getFindings(
       new NextRequest(`http://localhost:3000/api/documents/${docId}/findings`, { method: "GET" }),
       { params: Promise.resolve({ id: docId }) },
@@ -297,6 +304,10 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
     expect(getFindingsRes.status).toBe(200);
     const getFindingsJson = await getFindingsRes.json();
     expect(getFindingsJson.findings).toHaveLength(analyzeJson.findings.length);
+    expect(getFindingsJson.facts_summary).toEqual({
+      total_clauses: 3,
+      verified_clauses: 2,
+    });
   });
 
   it("second analyze call makes ZERO LLM calls (cached: true)", async () => {
@@ -566,7 +577,7 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
     const { error: factsRunsInsertErr } = await anon.from("facts_runs").insert({
       document_id: fakeDocId,
       extraction_run_id: crypto.randomUUID(),
-      prompt_version: "v1",
+      prompt_version: "v2",
       model: "fake-model",
       status: "running",
       clause_count: 1,

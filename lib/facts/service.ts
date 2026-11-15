@@ -103,6 +103,14 @@ export async function ensureDocumentFacts(
     throw new FactsServiceError("no_clauses", "No extracted clauses found for this document.", 409);
   }
 
+  // Fetch document page texts for cross-clause/page evidence verification
+  const { data: pageRows } = await supabase
+    .from("pages")
+    .select("page_number, text")
+    .eq("document_id", documentId)
+    .order("page_number", { ascending: true });
+  const pageTexts = (pageRows ?? []).map((p) => p.text);
+
   // 4. Cache check: if every clause has facts_prompt_version === FACTS_PROMPT_VERSION and facts !== null
   const isAllCached = clauses.every(
     (c) => c.facts_prompt_version === FACTS_PROMPT_VERSION && c.facts !== null,
@@ -268,11 +276,17 @@ export async function ensureDocumentFacts(
         item.facts,
       );
 
-      // Verify evidence quote
+      // Verify evidence quote using 2-mode search (drop then keep), checking target clause, other clauses, and pages
+      const otherClausesTexts = clauses
+        .filter((c) => c.id !== clauseTarget.id)
+        .map((c) => c.verbatim_text);
+
       const verifyResult = verifyFactEvidenceQuote(
         clauseTarget.verbatim_text,
         clauses.find((c) => c.id === clauseTarget.id)?.char_start ?? 0,
         item.evidence_quote,
+        otherClausesTexts,
+        pageTexts,
       );
 
       if (!verifyResult.valid) {
@@ -284,8 +298,10 @@ export async function ensureDocumentFacts(
           facts_verified: false,
         });
         dropped.push({
+          clause_id: clauseTarget.id,
           clause_type: clauseTarget.clause_type,
           reason: verifyResult.reason,
+          evidence_length: verifyResult.evidence_length,
         });
       } else {
         clauseFactsMap.set(clauseTarget.id, {
@@ -306,8 +322,10 @@ export async function ensureDocumentFacts(
           facts_verified: false,
         });
         dropped.push({
+          clause_id: clause.id,
           clause_type: clause.clause_type,
-          reason: "empty_evidence",
+          reason: "missing_evidence",
+          evidence_length: 0,
         });
       }
     }

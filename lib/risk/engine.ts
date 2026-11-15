@@ -13,7 +13,11 @@ import {
 } from "./types";
 
 function buildEvidenceForClauses(clauses: ClauseWithFacts[]): FindingEvidence[] {
-  return clauses.map((clause) => {
+  const items: FindingEvidence[] = [];
+  const seen = new Set<string>();
+
+  for (const clause of clauses) {
+    let evItem: FindingEvidence;
     if (clause.facts_evidence) {
       const verifyRes = verifyFactEvidenceQuote(
         clause.verbatim_text,
@@ -21,24 +25,48 @@ function buildEvidenceForClauses(clauses: ClauseWithFacts[]): FindingEvidence[] 
         clause.facts_evidence,
       );
       if (verifyRes.valid) {
-        return {
+        evItem = {
           clause_id: clause.id,
           page_number: clause.page_number,
           char_start: verifyRes.char_start,
           char_end: verifyRes.char_end,
           quote: verifyRes.quote,
         };
+      } else {
+        evItem = {
+          clause_id: clause.id,
+          page_number: clause.page_number,
+          char_start: clause.char_start ?? 0,
+          char_end: clause.char_end ?? (clause.char_start ?? 0) + clause.verbatim_text.length,
+          quote: clause.verbatim_text,
+        };
       }
+    } else {
+      evItem = {
+        clause_id: clause.id,
+        page_number: clause.page_number,
+        char_start: clause.char_start ?? 0,
+        char_end: clause.char_end ?? (clause.char_start ?? 0) + clause.verbatim_text.length,
+        quote: clause.verbatim_text,
+      };
     }
 
-    return {
-      clause_id: clause.id,
-      page_number: clause.page_number,
-      char_start: clause.char_start ?? 0,
-      char_end: clause.char_end ?? (clause.char_start ?? 0) + clause.verbatim_text.length,
-      quote: clause.facts_evidence || clause.verbatim_text,
-    };
+    const key = `${evItem.clause_id}:${evItem.page_number}:${evItem.char_start}:${evItem.char_end}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      items.push(evItem);
+    }
+  }
+
+  // Ordered by page, then position
+  items.sort((a, b) => {
+    if (a.page_number !== b.page_number) {
+      return a.page_number - b.page_number;
+    }
+    return a.char_start - b.char_start;
   });
+
+  return items;
 }
 
 function evaluateLawyerReview(
@@ -124,6 +152,12 @@ export function evaluateRiskRules(
           if (payAgg.currency.state === "single") {
             params.currency = payAgg.currency.value;
           }
+          // When a consequence sentence with a fee amount is shown, its source clause evidence (the fee) must be included too.
+          for (const feeClause of payAgg.total_fee_amount.clauses) {
+            if (!supportingClauses.some((sc) => sc.id === feeClause.id)) {
+              supportingClauses.push(feeClause);
+            }
+          }
         }
 
         const review = evaluateLawyerReview(
@@ -151,7 +185,25 @@ export function evaluateRiskRules(
       if (anyViolates) {
         const maxViolating = Math.max(...payAgg.days_to_pay.values.filter((d) => d > maxDays));
         const severity = maxViolating >= 2 * maxDays ? "high" : "medium";
-        const supportingClauses = payAgg.days_to_pay.clauses;
+        const supportingClauses = [...payAgg.days_to_pay.clauses];
+        const params: Record<string, unknown> = {
+          days_to_pay: maxViolating,
+          playbook_max_days: maxDays,
+          diff: maxViolating - maxDays,
+          conflicting_values: payAgg.days_to_pay.values,
+        };
+
+        if (payAgg.total_fee_amount.state === "single") {
+          params.amount = payAgg.total_fee_amount.value;
+          if (payAgg.currency.state === "single") {
+            params.currency = payAgg.currency.value;
+          }
+          for (const feeClause of payAgg.total_fee_amount.clauses) {
+            if (!supportingClauses.some((sc) => sc.id === feeClause.id)) {
+              supportingClauses.push(feeClause);
+            }
+          }
+        }
 
         const review = evaluateLawyerReview(
           supportingClauses,
@@ -168,12 +220,7 @@ export function evaluateRiskRules(
           priority: SEVERITY_PRIORITY_WEIGHTS[severity],
           clause_ids: supportingClauses.map((c) => c.id),
           evidence: buildEvidenceForClauses(supportingClauses),
-          params: {
-            days_to_pay: maxViolating,
-            playbook_max_days: maxDays,
-            diff: maxViolating - maxDays,
-            conflicting_values: payAgg.days_to_pay.values,
-          },
+          params,
           lawyer_review: review.lawyer_review,
           lawyer_review_reasons: review.lawyer_review_reasons,
         });
@@ -188,7 +235,7 @@ export function evaluateRiskRules(
     const withhold = payAgg.client_may_withhold.state === "single" ? payAgg.client_may_withhold.value : null;
 
     const isTriggerMatch = trigger === "acceptance" || trigger === "delivery_and_acceptance";
-    const isWithholdMatch = withhold === "yes";
+    const isWithholdMatch = withhold === "for_unaccepted_work";
 
     if (isTriggerMatch || isWithholdMatch) {
       const supportingClauses = Array.from(
@@ -481,7 +528,12 @@ export function evaluateRiskRules(
         }
 
         if (severity) {
-          const supportingClauses = ipAgg.clauses;
+          const supportingClauses = Array.from(
+            new Set([
+              ...ipAgg.transfer_timing.clauses,
+              ...(condPay === "no" ? ipAgg.conditional_on_payment.clauses : []),
+            ]),
+          );
           const review = evaluateLawyerReview(
             supportingClauses,
             false,
@@ -526,7 +578,12 @@ export function evaluateRiskRules(
           const days = termAgg.notice_days.value;
           if (days < minNotice) {
             const severity = days === 0 ? "high" : "medium";
-            const supportingClauses = termAgg.clauses;
+            const supportingClauses = Array.from(
+              new Set([
+                ...termAgg.client_convenience_termination.clauses,
+                ...termAgg.notice_days.clauses,
+              ]),
+            );
             const review = evaluateLawyerReview(
               supportingClauses,
               false,
@@ -555,7 +612,12 @@ export function evaluateRiskRules(
           const minContractDays = Math.min(...termAgg.notice_days.values);
           if (minContractDays < minNotice) {
             const severity = minContractDays === 0 ? "high" : "medium";
-            const supportingClauses = termAgg.clauses;
+            const supportingClauses = Array.from(
+              new Set([
+                ...termAgg.client_convenience_termination.clauses,
+                ...termAgg.notice_days.clauses,
+              ]),
+            );
             const review = evaluateLawyerReview(
               supportingClauses,
               false,
@@ -597,7 +659,12 @@ export function evaluateRiskRules(
 
         if (payWork === "none" || payWork === "only_invoiced") {
           const severity = payWork === "none" ? "high" : "medium";
-          const supportingClauses = termAgg.payment_for_work_done.clauses;
+          const supportingClauses = Array.from(
+            new Set([
+              ...termAgg.client_convenience_termination.clauses,
+              ...termAgg.payment_for_work_done.clauses,
+            ]),
+          );
           const review = evaluateLawyerReview(
             supportingClauses,
             false,

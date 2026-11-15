@@ -1,6 +1,22 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { FindingsPane } from "@/components/FindingsPane";
+import {
+  CLIENT_MAY_WITHHOLD,
+  CONTRACTOR_LIABILITY,
+  DISPUTE_FORUM,
+  INDEMNIFYING_PARTY,
+  INDEMNITY_SCOPE,
+  PAYMENT_FOR_WORK_DONE,
+  PAYMENT_TRIGGERS,
+  TRANSFER_TIMING,
+  YES_NO_UNSPECIFIED,
+} from "@/lib/facts/types";
 import bn from "@/lib/i18n/bn.json";
 import en from "@/lib/i18n/en.json";
+import type { Messages } from "@/lib/i18n";
+import type { FindingRow } from "@/lib/supabase/types";
 import {
   getExtractionErrorMessage,
   getPlaybookFieldErrorMessage,
@@ -223,5 +239,198 @@ describe("F8 dictionary parity check", () => {
     expect(enKeys).toContain("documentPane.demoNotice");
     expect(enKeys).toContain("playbookPane.loadErrorTitle");
     expect(enKeys).toContain("playbookPane.retryButton");
+  });
+});
+
+describe("F4: Localized labels and no raw codes on screen", () => {
+  it("for every enum value of every fact field, a label exists in both locales", () => {
+    const enumFields: Array<{
+      field: string;
+      values: readonly string[];
+    }> = [
+      { field: "payment_trigger", values: PAYMENT_TRIGGERS },
+      { field: "client_may_withhold", values: CLIENT_MAY_WITHHOLD },
+      { field: "contractor_liability", values: CONTRACTOR_LIABILITY },
+      { field: "indemnifying_party", values: INDEMNIFYING_PARTY },
+      { field: "scope", values: INDEMNITY_SCOPE },
+      { field: "references_defined_losses", values: YES_NO_UNSPECIFIED },
+      { field: "transfer_timing", values: TRANSFER_TIMING },
+      { field: "conditional_on_payment", values: YES_NO_UNSPECIFIED },
+      { field: "client_convenience_termination", values: YES_NO_UNSPECIFIED },
+      { field: "payment_for_work_done", values: PAYMENT_FOR_WORK_DONE },
+      { field: "handover_required", values: YES_NO_UNSPECIFIED },
+      { field: "written_change_order_required", values: YES_NO_UNSPECIFIED },
+      { field: "extra_work_without_additional_fee", values: YES_NO_UNSPECIFIED },
+      { field: "foreign_to_bangladesh", values: YES_NO_UNSPECIFIED },
+      { field: "dispute_forum", values: DISPUTE_FORUM },
+      { field: "includes_indirect_or_consequential_losses", values: YES_NO_UNSPECIFIED },
+      { field: "client_sole_discretion_acceptance", values: YES_NO_UNSPECIFIED },
+      {
+        field: "playbook_preference",
+        values: ["on_creation", "on_delivery", "on_full_payment", "license_only", "unspecified"],
+      },
+      { field: "clock_starts_at", values: PAYMENT_TRIGGERS },
+    ];
+
+    for (const { field, values } of enumFields) {
+      const enMap = (en.findingsPane.factLabels.values as Record<string, Record<string, string>>)[field];
+      const bnMap = (bn.findingsPane.factLabels.values as Record<string, Record<string, string>>)[field];
+
+      expect(enMap, `en.json missing factLabels.values.${field}`).toBeDefined();
+      expect(bnMap, `bn.json missing factLabels.values.${field}`).toBeDefined();
+
+      for (const val of values) {
+        expect(
+          enMap[val],
+          `en.json missing label for ${field}.${val}`,
+        ).toBeDefined();
+        expect(enMap[val].trim().length).toBeGreaterThan(0);
+
+        expect(
+          bnMap[val],
+          `bn.json missing label for ${field}.${val}`,
+        ).toBeDefined();
+        expect(bnMap[val].trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("fails if a raw snake_case value is rendered in the findings components (render helper test, no browser needed)", () => {
+    const sampleFindings: FindingRow[] = [
+      {
+        id: "f1111111-1111-4111-8111-111111111111",
+        document_id: "d0000000-0000-4000-8000-000000000000",
+        extraction_run_id: "e0000000-0000-4000-8000-000000000000",
+        facts_run_id: "r0000000-0000-4000-8000-000000000000",
+        rules_version: "v2",
+        rule_id: "PAY-1",
+        severity: "high",
+        priority: 60,
+        params: {
+          days_to_pay: 90,
+          playbook_max_days: 30,
+          diff: 60,
+          amount: 10000,
+          currency: "USD",
+          clock_starts_at: "acceptance",
+        },
+        clause_ids: ["c1"],
+        evidence: [
+          {
+            clause_id: "c1",
+            page_number: 1,
+            char_start: 10,
+            char_end: 50,
+            quote: "pay within ninety (90) days",
+          },
+        ],
+        lawyer_review: false,
+        lawyer_review_reasons: [],
+        playbook_snapshot: {},
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: "f2222222-2222-4222-8222-222222222222",
+        document_id: "d0000000-0000-4000-8000-000000000000",
+        extraction_run_id: "e0000000-0000-4000-8000-000000000000",
+        facts_run_id: "r0000000-0000-4000-8000-000000000000",
+        rules_version: "v2",
+        rule_id: "PAY-2",
+        severity: "medium",
+        priority: 30,
+        params: {
+          payment_trigger: "acceptance",
+          client_may_withhold: "for_unaccepted_work",
+        },
+        clause_ids: ["c1"],
+        evidence: [],
+        lawyer_review: true,
+        lawyer_review_reasons: ["facts_dropped"],
+        playbook_snapshot: {},
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: "f3333333-3333-4333-8333-333333333333",
+        document_id: "d0000000-0000-4000-8000-000000000000",
+        extraction_run_id: "e0000000-0000-4000-8000-000000000000",
+        facts_run_id: "r0000000-0000-4000-8000-000000000000",
+        rules_version: "v2",
+        rule_id: "IP-1",
+        severity: "high",
+        priority: 60,
+        params: {
+          playbook_preference: "on_full_payment",
+          transfer_timing: "on_creation",
+          conditional_on_payment: "no",
+        },
+        clause_ids: ["c2"],
+        evidence: [],
+        lawyer_review: false,
+        lawyer_review_reasons: [],
+        playbook_snapshot: {},
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: "f4444444-4444-4444-8444-444444444444",
+        document_id: "d0000000-0000-4000-8000-000000000000",
+        extraction_run_id: "e0000000-0000-4000-8000-000000000000",
+        facts_run_id: "r0000000-0000-4000-8000-000000000000",
+        rules_version: "v2",
+        rule_id: "LIAB-1",
+        severity: "high",
+        priority: 60,
+        params: {
+          contractor_liability: "unlimited",
+          require_cap: true,
+        },
+        clause_ids: ["c3"],
+        evidence: [],
+        lawyer_review: false,
+        lawyer_review_reasons: [],
+        playbook_snapshot: {},
+        created_at: new Date().toISOString(),
+      },
+    ];
+
+    const renderPane = (locale: "en" | "bn", findingsToRender: FindingRow[]) => {
+      const messages = locale === "bn" ? bn.findingsPane : en.findingsPane;
+      const html = renderToStaticMarkup(
+        React.createElement(FindingsPane, {
+          messages: messages as unknown as Messages["findingsPane"],
+          locale,
+          status: "succeeded",
+          errorCode: null,
+          isStale: false,
+          findings: findingsToRender,
+          playbookUsed: "saved",
+          hasClauses: true,
+          selectedFindingId: null,
+          onSelectFinding: () => {},
+          onAnalyze: () => {},
+          isAnalyzing: false,
+          initialExpandedAll: true,
+          factsSummary: { total_clauses: 5, verified_clauses: 4 },
+        }),
+      );
+      return html.replace(/<[^>]+>/g, " ").replace(/&[a-z0-9#]+;/gi, " ");
+    };
+
+    const enText = renderPane("en", sampleFindings);
+    const bnText = renderPane("bn", sampleFindings);
+
+    const snakeCaseRegex = /\b[a-z]{2,}_[a-z0-9_]+\b/;
+
+    expect(enText).not.toMatch(snakeCaseRegex);
+    expect(bnText).not.toMatch(snakeCaseRegex);
+
+    // Fail check: raw snake_case in custom/untranslated params triggers regex match
+    const badFinding: FindingRow = {
+      ...sampleFindings[0],
+      params: {
+        raw_untranslated_key: "raw_snake_case_value",
+      },
+    };
+    const badText = renderPane("en", [badFinding]);
+    expect(badText).toMatch(snakeCaseRegex);
   });
 });

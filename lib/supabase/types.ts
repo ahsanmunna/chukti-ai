@@ -139,8 +139,10 @@ export interface ClauseRow {
 export type FactsRunStatus = "running" | "succeeded" | "failed";
 
 export interface DroppedFactItem {
+  clause_id: string;
   clause_type: ClauseType;
   reason: string;
+  evidence_length: number;
 }
 
 export interface FactsRunRow {

@@ -83,6 +83,7 @@ export function ContractWorkspace() {
   const [findingsStatus, setFindingsStatus] = useState<FindingsStatus>("idle");
   const [findingsError, setFindingsError] = useState<string | null>(null);
   const [findings, setFindings] = useState<FindingRow[]>([]);
+  const [factsSummary, setFactsSummary] = useState<{ total_clauses: number; verified_clauses: number } | null>(null);
   const [playbookUsed, setPlaybookUsed] = useState<"saved" | "defaults">("defaults");
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [highlightRanges, setHighlightRanges] = useState<DocumentHighlightRange[] | null>(null);
@@ -187,7 +188,13 @@ export function ContractWorkspace() {
     try {
       const response = await fetch(`/api/documents/${documentId}/findings`);
       if (!response.ok) return;
-      const data = (await response.json()) as { findings?: FindingRow[] };
+      const data = (await response.json()) as {
+        findings?: FindingRow[];
+        facts_summary?: { total_clauses: number; verified_clauses: number } | null;
+      };
+      if (data.facts_summary) {
+        setFactsSummary(data.facts_summary);
+      }
       if (data.findings && data.findings.length > 0) {
         setFindings(data.findings);
         setFindingsStatus("succeeded");
@@ -217,6 +224,7 @@ export function ContractWorkspace() {
       });
       const data = (await response.json()) as {
         findings?: FindingRow[];
+        facts_summary?: { total_clauses: number; verified_clauses: number } | null;
         error?: { code?: string; message?: string };
       };
 
@@ -224,6 +232,10 @@ export function ContractWorkspace() {
         setFindingsStatus("error");
         setFindingsError(data.error?.code ?? "unknown");
         return;
+      }
+
+      if (data.facts_summary) {
+        setFactsSummary(data.facts_summary);
       }
 
       setFindings(data.findings);
@@ -796,6 +808,7 @@ export function ContractWorkspace() {
                     onSelectEvidence={handleSelectEvidence}
                     onAnalyze={handleAnalyzeRisks}
                     isAnalyzing={findingsStatus === "running"}
+                    factsSummary={factsSummary}
                   />
                 </div>
               )}

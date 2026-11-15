@@ -181,17 +181,29 @@ describe("Deterministic Risk Rules Boundaries", () => {
       expect(pay2?.severity).toBe("medium");
     });
 
-    it("fires medium when client_may_withhold is yes", () => {
+    it("fires medium when client_may_withhold is for_unaccepted_work", () => {
       const clauses: ClauseWithFacts[] = [
         createClause({
           clause_type: "payment",
-          facts: { client_may_withhold: "yes", days_to_pay: 15 },
+          facts: { client_may_withhold: "for_unaccepted_work", days_to_pay: 15 },
         }),
       ];
       const findings = evaluateRiskRules(clauses, basePlaybook);
       const pay2 = findings.find((f) => f.rule_id === "PAY-2");
       expect(pay2).toBeDefined();
       expect(pay2?.severity).toBe("medium");
+    });
+
+    it("does not fire when client_may_withhold is disputed_portion_only (boundary test)", () => {
+      const clauses: ClauseWithFacts[] = [
+        createClause({
+          clause_type: "payment",
+          facts: { payment_trigger: "invoice_receipt", client_may_withhold: "disputed_portion_only", days_to_pay: 15 },
+        }),
+      ];
+      const findings = evaluateRiskRules(clauses, basePlaybook);
+      const pay2 = findings.find((f) => f.rule_id === "PAY-2");
+      expect(pay2).toBeUndefined();
     });
 
     it("does not fire when invoice_receipt and withholding is no", () => {
@@ -866,5 +878,79 @@ describe("Fixture Evaluation: riskyContractClauses & balancedContractClauses", (
     const findings = evaluateRiskRules(balancedContractClauses, DEFAULT_PLAYBOOK);
     expect(findings).toEqual([]);
     expect(findings.length).toBe(0);
+  });
+
+  describe("Evidence trimming (F3)", () => {
+    it("risky fixture IP finding has exactly the on-creation clause evidence", () => {
+      const findings = evaluateRiskRules(riskyContractClauses, DEFAULT_PLAYBOOK);
+      const ipFinding = findings.find((f) => f.rule_id === "IP-1");
+      expect(ipFinding).toBeDefined();
+      expect(ipFinding?.evidence).toHaveLength(1);
+      expect(ipFinding?.evidence[0].clause_id).toBe("33333333-3333-4333-8333-333333333333");
+      expect(ipFinding?.evidence[0].quote).toContain("rights in deliverables shall vest in Client immediately upon creation");
+    });
+
+    it("termination finding has the convenience-termination clause and the payment-for-work clause only", () => {
+      const convClause = createClause({
+        id: "term-conv-1",
+        clause_type: "termination",
+        verbatim_text: "Client may terminate this Agreement at any time for convenience upon written notice.",
+        facts_evidence: "terminate this Agreement at any time for convenience",
+        facts: { client_convenience_termination: "yes", notice_days: 30 },
+      });
+      const payClause = createClause({
+        id: "term-pay-2",
+        clause_type: "termination",
+        verbatim_text: "In the event of termination, no payment shall be made for work completed prior to notice.",
+        facts_evidence: "no payment shall be made for work completed prior to notice",
+        facts: { payment_for_work_done: "none" },
+      });
+      const handoverClause = createClause({
+        id: "term-handover-3",
+        clause_type: "termination",
+        verbatim_text: "Contractor shall promptly return all client confidential materials upon termination.",
+        facts_evidence: "return all client confidential materials upon termination",
+        facts: { handover_required: "yes" },
+      });
+
+      const findings = evaluateRiskRules([convClause, payClause, handoverClause], DEFAULT_PLAYBOOK);
+      const term2 = findings.find((f) => f.rule_id === "TERM-2");
+      expect(term2).toBeDefined();
+      expect(term2?.clause_ids).toEqual(["term-conv-1", "term-pay-2"]);
+      expect(term2?.evidence).toHaveLength(2);
+      const evClauseIds = term2?.evidence.map((e) => e.clause_id);
+      expect(evClauseIds).toContain("term-conv-1");
+      expect(evClauseIds).toContain("term-pay-2");
+      expect(evClauseIds).not.toContain("term-handover-3");
+    });
+
+    it("PAY-1 includes the fee clause when consequence sentence with fee is shown", () => {
+      const daysClause = createClause({
+        id: "pay-days-1",
+        clause_type: "payment",
+        page_number: 1,
+        verbatim_text: "Invoices shall be paid within sixty (60) days of receipt.",
+        facts_evidence: "paid within sixty (60) days of receipt",
+        facts: { days_to_pay: 60, payment_trigger: "invoice_receipt" },
+      });
+      const feeClause = createClause({
+        id: "pay-fee-2",
+        clause_type: "payment",
+        page_number: 2,
+        verbatim_text: "The total fee for all services shall be 5,000 USD payable as scheduled.",
+        facts_evidence: "total fee for all services shall be 5,000 USD",
+        facts: { total_fee_amount: 5000, currency: "USD" },
+      });
+
+      const findings = evaluateRiskRules([daysClause, feeClause], DEFAULT_PLAYBOOK);
+      const pay1 = findings.find((f) => f.rule_id === "PAY-1");
+      expect(pay1).toBeDefined();
+      expect(pay1?.params.amount).toBe(5000);
+      expect(pay1?.clause_ids).toContain("pay-days-1");
+      expect(pay1?.clause_ids).toContain("pay-fee-2");
+      const evClauseIds = pay1?.evidence.map((e) => e.clause_id);
+      expect(evClauseIds).toContain("pay-days-1");
+      expect(evClauseIds).toContain("pay-fee-2");
+    });
   });
 });

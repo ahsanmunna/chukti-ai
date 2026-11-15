@@ -23,12 +23,12 @@ export const riskyContractClauses: ClauseWithFacts[] = [
       currency: "USD",
       days_to_pay: 90,
       payment_trigger: "acceptance",
-      client_may_withhold: "yes",
+      client_may_withhold: "for_unaccepted_work",
     },
     facts_evidence:
       "Client shall pay Contractor fees of 10,000 USD within ninety (90) calendar days following client's formal written acceptance",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "22222222-2222-4222-8222-222222222222",
@@ -50,7 +50,7 @@ export const riskyContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "Contractor's liability arising out of or related to this Agreement shall be unlimited",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "33333333-3333-4333-8333-333333333333",
@@ -72,7 +72,7 @@ export const riskyContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "rights in deliverables shall vest in Client immediately upon creation, irrespective of whether fees have been paid",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "44444444-4444-4444-8444-444444444444",
@@ -96,7 +96,7 @@ export const riskyContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "Client may terminate this Agreement for convenience immediately at any time with zero days notice. Upon termination, Contractor shall receive no payment",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "55555555-5555-4555-8555-555555555555",
@@ -118,7 +118,7 @@ export const riskyContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "request scope changes verbally without written change order, and Contractor agrees to perform all extra work without additional fee",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "66666666-6666-4666-8666-666666666666",
@@ -142,7 +142,7 @@ export const riskyContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "governed by the laws of California, USA. Any dispute shall be settled by binding arbitration seated in San Francisco",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "77777777-7777-4777-8777-777777777777",
@@ -165,7 +165,7 @@ export const riskyContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "Contractor shall indemnify, defend, and hold harmless Client against any and all claims, liabilities, and losses whatsoever",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "88888888-8888-4888-8888-888888888888",
@@ -188,7 +188,7 @@ export const riskyContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "Losses means all direct, indirect, special, incidental, punitive, or consequential damages",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
 ];
 
@@ -220,7 +220,7 @@ export const balancedContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "Client shall pay Contractor fees within fifteen (15) calendar days following receipt of Contractor's invoice",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "92222222-2222-4222-8222-222222222222",
@@ -242,7 +242,7 @@ export const balancedContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "aggregate liability under this Agreement shall be capped at 1.0 times total fees paid",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "93333333-3333-4333-8333-333333333333",
@@ -264,7 +264,7 @@ export const balancedContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "Ownership of deliverables shall transfer to Client only upon receipt of full payment",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "94444444-4444-4444-8444-444444444444",
@@ -288,7 +288,7 @@ export const balancedContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "convenience upon thirty (30) days written notice. In the event of termination, Contractor shall receive full payment",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "95555555-5555-4555-8555-555555555555",
@@ -310,7 +310,7 @@ export const balancedContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "change to the scope of work must be agreed in a written change order signed by both parties",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "96666666-6666-4666-8666-666666666666",
@@ -334,7 +334,7 @@ export const balancedContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "governed by and construed in accordance with the laws of Bangladesh, and disputes shall be heard in the courts of Dhaka",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "97777777-7777-4777-8777-777777777777",
@@ -357,7 +357,7 @@ export const balancedContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "mutual indemnification strictly limited to direct damages arising from gross negligence",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
   {
     id: "98888888-8888-4888-8888-888888888888",
@@ -380,6 +380,6 @@ export const balancedContractClauses: ClauseWithFacts[] = [
     facts_evidence:
       "include only direct verified out-of-pocket costs and explicitly excludes indirect and consequential losses",
     facts_verified: true,
-    facts_prompt_version: "v1",
+    facts_prompt_version: "v2",
   },
 ];

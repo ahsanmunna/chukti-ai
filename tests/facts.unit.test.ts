@@ -4,6 +4,7 @@ import {
   buildFactsUserPrompt,
 } from "@/lib/facts/prompt";
 import {
+  CLIENT_MAY_WITHHOLD,
   factsResponseSchema,
   filterFactsForClauseType,
   getDefaultFactsForType,
@@ -28,37 +29,108 @@ describe("Facts Evidence Quote Verification (verifyFactEvidenceQuote)", () => {
     }
   });
 
-  it("rejects quotes shorter than 10 characters", () => {
-    const shortQuote = "30 days";
-    const result = verifyFactEvidenceQuote(clauseText, 0, shortQuote);
-    expect(result.valid).toBe(false);
-    if (!result.valid) {
-      expect(result.reason).toBe("evidence_too_short");
+  it("accepts evidence with line-end hyphenated compound ('good-\\nfaith' in clause text, 'good-faith' in evidence)", () => {
+    const text = "All parties agree to negotiate in good-\nfaith regarding revisions.";
+    const res = verifyFactEvidenceQuote(text, 0, "good-faith");
+    expect(res.valid).toBe(true);
+    if (res.valid) {
+      expect(res.quote).toBe("good-\nfaith");
     }
   });
 
-  it("rejects quotes longer than 300 characters", () => {
-    const longQuote = "a".repeat(301);
-    const result = verifyFactEvidenceQuote(clauseText, 0, longQuote);
-    expect(result.valid).toBe(false);
-    if (!result.valid) {
-      expect(result.reason).toBe("evidence_too_long");
+  it("evidence with an ellipsis returns not_in_document", () => {
+    const text = "Client shall pay within thirty (30) days of delivery.";
+    const quoteWithEllipsis = "pay within thirty ... days of delivery";
+    const res = verifyFactEvidenceQuote(text, 0, quoteWithEllipsis);
+    expect(res.valid).toBe(false);
+    if (!res.valid) {
+      expect(res.reason).toBe("not_in_document");
+      expect(res.evidence_length).toBe(quoteWithEllipsis.length);
     }
   });
 
-  it("rejects quotes not found in clause text", () => {
-    const fabricatedQuote = "Client shall pay Contractor within ninety days immediately";
-    const result = verifyFactEvidenceQuote(clauseText, 0, fabricatedQuote);
-    expect(result.valid).toBe(false);
-    if (!result.valid) {
-      expect(result.reason).toBe("evidence_not_found");
+  it("evidence copied from a different clause returns not_in_clause_but_in_document", () => {
+    const targetClause = "Payment is due within thirty days.";
+    const otherClause = "Contractor liability shall be strictly capped at total fees.";
+    const res = verifyFactEvidenceQuote(
+      targetClause,
+      0,
+      "liability shall be strictly capped",
+      [otherClause],
+    );
+    expect(res.valid).toBe(false);
+    if (!res.valid) {
+      expect(res.reason).toBe("not_in_clause_but_in_document");
+      expect(res.evidence_length).toBe("liability shall be strictly capped".length);
     }
   });
 
-  it("rejects empty or whitespace quotes", () => {
-    expect(verifyFactEvidenceQuote(clauseText, 0, "").valid).toBe(false);
-    expect(verifyFactEvidenceQuote(clauseText, 0, "   ").valid).toBe(false);
-    expect(verifyFactEvidenceQuote(clauseText, 0, null).valid).toBe(false);
+  it("evidence copied from page text outside clauses returns not_in_clause_but_in_document", () => {
+    const targetClause = "Payment is due within thirty days.";
+    const pageText = "MASTER SERVICES AGREEMENT RECITALS: The company desires to retain services.";
+    const res = verifyFactEvidenceQuote(
+      targetClause,
+      0,
+      "The company desires to retain services",
+      [],
+      [pageText],
+    );
+    expect(res.valid).toBe(false);
+    if (!res.valid) {
+      expect(res.reason).toBe("not_in_clause_but_in_document");
+    }
+  });
+
+  it("rejects evidence with 601 characters as too_long", () => {
+    const longQuote = "a".repeat(601);
+    const res = verifyFactEvidenceQuote(clauseText, 0, longQuote);
+    expect(res.valid).toBe(false);
+    if (!res.valid) {
+      expect(res.reason).toBe("too_long");
+      expect(res.evidence_length).toBe(601);
+    }
+  });
+
+  it("respects 10-character boundary (9 -> too_short, 10 -> boundary accepted)", () => {
+    const text = "0123456789ABCDEF";
+    const nineChar = "012345678";
+    const tenChar = "0123456789";
+
+    const resNine = verifyFactEvidenceQuote(text, 0, nineChar);
+    expect(resNine.valid).toBe(false);
+    if (!resNine.valid) {
+      expect(resNine.reason).toBe("too_short");
+      expect(resNine.evidence_length).toBe(9);
+    }
+
+    const resTen = verifyFactEvidenceQuote(text, 0, tenChar);
+    expect(resTen.valid).toBe(true);
+    if (resTen.valid) {
+      expect(resTen.quote).toBe(tenChar);
+    }
+  });
+
+  it("rejects empty or whitespace quotes with missing_evidence", () => {
+    const resEmpty = verifyFactEvidenceQuote(clauseText, 0, "");
+    expect(resEmpty.valid).toBe(false);
+    if (!resEmpty.valid) {
+      expect(resEmpty.reason).toBe("missing_evidence");
+      expect(resEmpty.evidence_length).toBe(0);
+    }
+
+    const resWs = verifyFactEvidenceQuote(clauseText, 0, "   ");
+    expect(resWs.valid).toBe(false);
+    if (!resWs.valid) {
+      expect(resWs.reason).toBe("missing_evidence");
+      expect(resWs.evidence_length).toBe(3);
+    }
+
+    const resNull = verifyFactEvidenceQuote(clauseText, 0, null);
+    expect(resNull.valid).toBe(false);
+    if (!resNull.valid) {
+      expect(resNull.reason).toBe("missing_evidence");
+      expect(resNull.evidence_length).toBe(0);
+    }
   });
 });
 
@@ -88,12 +160,17 @@ describe("Facts Prompt Building (buildFactsUserPrompt)", () => {
 
     expect(markerMap.get("C1")?.id).toBe("11111111-2222-3333-4444-555555555555");
     expect(markerMap.get("C2")?.id).toBe("99999999-8888-7777-6666-555555555555");
-    expect(FACTS_PROMPT_VERSION).toBe("v1");
+    expect(FACTS_PROMPT_VERSION).toBe("v2");
   });
 });
 
 describe("Facts Schema & Filtering (filterFactsForClauseType & getDefaultFactsForType)", () => {
-  it("parses valid LLM facts response through factsResponseSchema", () => {
+  it("parses valid LLM facts response through factsResponseSchema with client_may_withhold enum", () => {
+    expect(CLIENT_MAY_WITHHOLD).toContain("for_unaccepted_work");
+    expect(CLIENT_MAY_WITHHOLD).toContain("disputed_portion_only");
+    expect(CLIENT_MAY_WITHHOLD).toContain("no");
+    expect(CLIENT_MAY_WITHHOLD).toContain("unspecified");
+
     const raw = {
       items: [
         {
@@ -102,7 +179,7 @@ describe("Facts Schema & Filtering (filterFactsForClauseType & getDefaultFactsFo
           facts: {
             days_to_pay: 30,
             payment_trigger: "invoice_receipt",
-            client_may_withhold: "no",
+            client_may_withhold: "disputed_portion_only",
             total_fee_amount: 1000,
             currency: "USD",
           },
@@ -118,7 +195,7 @@ describe("Facts Schema & Filtering (filterFactsForClauseType & getDefaultFactsFo
     const rawFacts = {
       days_to_pay: 30,
       payment_trigger: "invoice_receipt" as const,
-      client_may_withhold: "no" as const,
+      client_may_withhold: "for_unaccepted_work" as const,
       contractor_liability: "unlimited" as const, // Should be ignored for payment
       foreign_to_bangladesh: "yes" as const, // Should be ignored for payment
     };
@@ -129,7 +206,7 @@ describe("Facts Schema & Filtering (filterFactsForClauseType & getDefaultFactsFo
       currency: null,
       days_to_pay: 30,
       payment_trigger: "invoice_receipt",
-      client_may_withhold: "no",
+      client_may_withhold: "for_unaccepted_work",
     });
     expect((filteredPayment as unknown as Record<string, unknown>).contractor_liability).toBeUndefined();
     expect((filteredPayment as unknown as Record<string, unknown>).foreign_to_bangladesh).toBeUndefined();
@@ -140,6 +217,15 @@ describe("Facts Schema & Filtering (filterFactsForClauseType & getDefaultFactsFo
     expect(defaultLiability).toEqual({
       contractor_liability: "unspecified",
       cap_multiple_of_fees: null,
+    });
+
+    const defaultPayment = getDefaultFactsForType("payment");
+    expect(defaultPayment).toEqual({
+      total_fee_amount: null,
+      currency: null,
+      days_to_pay: null,
+      payment_trigger: "unspecified",
+      client_may_withhold: "unspecified",
     });
   });
 });
