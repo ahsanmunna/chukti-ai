@@ -54,6 +54,21 @@ export function ClausesPane({
       .replace("{rejected}", String(rejected));
   };
 
+  const formatClauseDisplayText = (text: string) => {
+    const normalized = text.replace(/\r\n/g, "\n");
+    return normalized.replace(/(?<!\n)\n(?!\n)/g, " ");
+  };
+
+  const truncateAtWordBoundary = (text: string, maxLen = 280) => {
+    if (text.length <= maxLen) return text;
+    const sliced = text.slice(0, maxLen);
+    const lastSpace = sliced.lastIndexOf(" ");
+    if (lastSpace > maxLen * 0.7) {
+      return `${sliced.slice(0, lastSpace)}...`;
+    }
+    return `${sliced}...`;
+  };
+
   // Group clauses by clause_type preserving canonical order
   const groupedClauses = CLAUSE_TYPES.map((type) => {
     return {
@@ -201,6 +216,9 @@ export function ClausesPane({
                 runData?.rejected_count ?? 0,
               )}
             </p>
+            <p className="mt-1 text-xs text-text-secondary">
+              {messages.verifiedHeaderNotice}
+            </p>
             {runData?.cached ? (
               <div className="mt-2 inline-flex items-center gap-1.5 rounded border border-border-info bg-surface-info px-2 py-0.5 text-xs font-medium text-text-info">
                 <svg
@@ -236,11 +254,12 @@ export function ClausesPane({
                   {group.items.map((clause) => {
                     const isSelected = selectedClauseId === clause.id;
                     const isExpanded = expandedIds.has(clause.id);
-                    const shouldTruncate = clause.verbatim_text.length > 280;
+                    const formattedText = formatClauseDisplayText(clause.verbatim_text);
+                    const shouldTruncate = formattedText.length > 280;
                     const displayText =
                       shouldTruncate && !isExpanded
-                        ? `${clause.verbatim_text.slice(0, 280)}...`
-                        : clause.verbatim_text;
+                        ? truncateAtWordBoundary(formattedText, 280)
+                        : formattedText;
 
                     return (
                       <div
@@ -263,21 +282,6 @@ export function ClausesPane({
                             </span>
 
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="inline-flex items-center gap-1 rounded border border-border-success bg-surface-success px-2 py-0.5 text-[11px] font-semibold text-text-success">
-                                <svg
-                                  aria-hidden="true"
-                                  viewBox="0 0 16 16"
-                                  fill="currentColor"
-                                  className="h-3 w-3 shrink-0"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"
-                                  />
-                                </svg>
-                                <span>{messages.verifiedBadge}</span>
-                              </span>
-
                               {clause.extraction_confidence === "low" ? (
                                 <span className="inline-flex items-center gap-1 rounded border border-border-warning bg-surface-warning px-2 py-0.5 text-[11px] font-semibold text-text-warning">
                                   <svg

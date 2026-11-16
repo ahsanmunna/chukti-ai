@@ -24,6 +24,13 @@ export interface SelectedClauseRange {
   char_end: number;
 }
 
+export interface DocumentHighlightRange {
+  id?: string;
+  page_number: number;
+  char_start: number;
+  char_end: number;
+}
+
 interface DocumentPaneProps {
   messages: Messages["documentPane"];
   locale: Locale;
@@ -37,6 +44,7 @@ interface DocumentPaneProps {
     pages: DocumentPageDto[];
   } | null;
   selectedClause?: SelectedClauseRange | null;
+  highlightRanges?: DocumentHighlightRange[] | null;
   onFileSelected: (file: File) => void;
   onReset: () => void;
 }
@@ -51,29 +59,52 @@ export function DocumentPane({
   error,
   documentData,
   selectedClause,
+  highlightRanges,
   onFileSelected,
   onReset,
 }: DocumentPaneProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [userPage, setUserPage] = useState<number | null>(null);
-  const [prevClauseId, setPrevClauseId] = useState<string | null>(null);
+  const [prevHighlightKey, setPrevHighlightKey] = useState<string | null>(null);
 
-  if (selectedClause && selectedClause.id !== prevClauseId) {
-    setPrevClauseId(selectedClause.id);
-    setUserPage(selectedClause.page_number);
+  const activeRanges: DocumentHighlightRange[] =
+    highlightRanges && highlightRanges.length > 0
+      ? highlightRanges
+      : selectedClause
+        ? [selectedClause]
+        : [];
+
+  const firstRange =
+    activeRanges.length > 0
+      ? [...activeRanges].sort((a, b) =>
+          a.page_number !== b.page_number
+            ? a.page_number - b.page_number
+            : a.char_start - b.char_start,
+        )[0]
+      : null;
+
+  const currentHighlightKey = firstRange
+    ? `${firstRange.page_number}:${firstRange.char_start}:${firstRange.char_end}`
+    : null;
+
+  if (currentHighlightKey && currentHighlightKey !== prevHighlightKey) {
+    setPrevHighlightKey(currentHighlightKey);
+    if (firstRange) {
+      setUserPage(firstRange.page_number);
+    }
   }
 
   const activePage = userPage ?? 1;
 
   useEffect(() => {
-    if (selectedClause) {
+    if (firstRange) {
       const frameId = requestAnimationFrame(() => {
         const markEl = document.getElementById("highlighted-clause");
         if (markEl) {
           markEl.scrollIntoView({ behavior: "smooth", block: "center" });
         } else {
-          const pageEl = document.getElementById(`contract-page-${selectedClause.page_number}`);
+          const pageEl = document.getElementById(`contract-page-${firstRange.page_number}`);
           if (pageEl) {
             pageEl.scrollIntoView({ behavior: "smooth", block: "start" });
           }
@@ -81,7 +112,7 @@ export function DocumentPane({
       });
       return () => cancelAnimationFrame(frameId);
     }
-  }, [selectedClause]);
+  }, [firstRange, currentHighlightKey]);
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) {
@@ -222,33 +253,54 @@ export function DocumentPane({
                 </h3>
               </header>
               <div className="font-serif-contract whitespace-pre-wrap break-words text-[15px] leading-7 text-text-primary">
-                {page.text.length === 0 ? (
-                  messages.emptyPageText
-                ) : selectedClause && selectedClause.page_number === page.page_number ? (
-                  (() => {
-                    const text = page.text;
-                    const start = Math.max(0, Math.min(selectedClause.char_start, text.length));
-                    const end = Math.max(start, Math.min(selectedClause.char_end, text.length));
-                    const before = text.slice(0, start);
-                    const match = text.slice(start, end);
-                    const after = text.slice(end);
+                {(() => {
+                  if (page.text.length === 0) {
+                    return messages.emptyPageText;
+                  }
 
-                    return (
-                      <>
-                        {before}
+                  const pageRanges = activeRanges
+                    .filter((r) => r.page_number === page.page_number && r.char_end > r.char_start)
+                    .sort((a, b) => a.char_start - b.char_start);
+
+                  if (pageRanges.length === 0) {
+                    return page.text;
+                  }
+
+                  const text = page.text;
+                  const nodes: React.ReactNode[] = [];
+                  let lastIndex = 0;
+
+                  pageRanges.forEach((range, idx) => {
+                    const start = Math.max(lastIndex, Math.min(range.char_start, text.length));
+                    const end = Math.max(start, Math.min(range.char_end, text.length));
+
+                    if (start > lastIndex) {
+                      nodes.push(text.slice(lastIndex, start));
+                    }
+
+                    if (end > start) {
+                      const isFirstOverall =
+                        firstRange?.page_number === page.page_number &&
+                        firstRange.char_start === range.char_start;
+                      nodes.push(
                         <mark
-                          id="highlighted-clause"
+                          key={`mark-${page.page_number}-${start}-${idx}`}
+                          id={isFirstOverall ? "highlighted-clause" : undefined}
                           className="rounded-xs border-b-2 border-accent-primary bg-accent-soft text-text-primary underline decoration-accent-primary decoration-2 underline-offset-4"
                         >
-                          {match}
-                        </mark>
-                        {after}
-                      </>
-                    );
-                  })()
-                ) : (
-                  page.text
-                )}
+                          {text.slice(start, end)}
+                        </mark>,
+                      );
+                      lastIndex = end;
+                    }
+                  });
+
+                  if (lastIndex < text.length) {
+                    nodes.push(text.slice(lastIndex));
+                  }
+
+                  return <>{nodes}</>;
+                })()}
               </div>
             </article>
           ))}

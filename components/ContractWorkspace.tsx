@@ -11,6 +11,7 @@ import {
 } from "@/lib/playbook/schema";
 import {
   DocumentPane,
+  type DocumentHighlightRange,
   type DocumentPaneStatus,
   type DocumentUploadError,
   type SelectedClauseRange,
@@ -21,6 +22,8 @@ import {
   type PlaybookSaveStatus,
 } from "./PlaybookPane";
 import { ClausesPane, type ExtractionStatus } from "./ClausesPane";
+import { FindingsPane, type FactsSummary, type FindingsStatus } from "./FindingsPane";
+import type { FindingEvidenceItem, FindingRow } from "@/lib/supabase/types";
 import type {
   ClauseDto,
   ExtractionResponseDto,
@@ -70,12 +73,29 @@ export function ContractWorkspace() {
   const [playbookFieldErrors, setPlaybookFieldErrors] = useState<Record<string, string>>({});
   const [playbookErrorKind, setPlaybookErrorKind] = useState<PlaybookErrorKind>(null);
 
-  const [activeRightTab, setActiveRightTab] = useState<"playbook" | "clauses">("playbook");
+  const [activeRightTab, setActiveRightTab] = useState<"playbook" | "clauses" | "findings">("playbook");
   const [extractStatus, setExtractStatus] = useState<ExtractionStatus>("idle");
   const [extractError, setExtractError] = useState<string | null>(null);
   const [runData, setRunData] = useState<ExtractionRunDto | null>(null);
   const [clauses, setClauses] = useState<ClauseDto[]>([]);
   const [selectedClause, setSelectedClause] = useState<SelectedClauseRange | null>(null);
+
+  const [findingsStatus, setFindingsStatus] = useState<FindingsStatus>("idle");
+  const [findingsError, setFindingsError] = useState<string | null>(null);
+  const [findings, setFindings] = useState<FindingRow[]>([]);
+  const [factsSummary, setFactsSummary] = useState<FactsSummary | null>(null);
+  const [playbookUsed, setPlaybookUsed] = useState<"saved" | "defaults">("defaults");
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  const [highlightRanges, setHighlightRanges] = useState<DocumentHighlightRange[] | null>(null);
+
+  const isPlaybookStale = (() => {
+    if (findings.length === 0) return false;
+    const firstSnapshot = findings[0]?.playbook_snapshot as {
+      preferences?: PlaybookPreferences;
+    } | null;
+    if (!firstSnapshot || !firstSnapshot.preferences) return false;
+    return JSON.stringify(firstSnapshot.preferences) !== JSON.stringify(playbook);
+  })();
 
   const messages = getMessages(locale);
 
@@ -164,7 +184,110 @@ export function ContractWorkspace() {
     }
   };
 
+  const loadFindingsForDocument = async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/findings`);
+      if (!response.ok) return;
+      const data = (await response.json()) as {
+        findings?: FindingRow[];
+        facts_summary?: FactsSummary | null;
+      };
+      if (data.facts_summary) {
+        setFactsSummary(data.facts_summary);
+      }
+      if (data.findings && data.findings.length > 0) {
+        setFindings(data.findings);
+        setFindingsStatus("succeeded");
+        const snap = data.findings[0]?.playbook_snapshot as { is_default?: boolean } | null;
+        setPlaybookUsed(snap?.is_default ? "defaults" : "saved");
+      } else {
+        setFindings([]);
+      }
+    } catch {
+      // Non-fatal on initial load
+    }
+  };
+
+  const handleAnalyzeRisks = async () => {
+    const documentId = documentData?.document.id;
+    if (!documentId) return;
+
+    setActiveRightTab("findings");
+    setFindingsStatus("running");
+    setFindingsError(null);
+    setSelectedFindingId(null);
+    setHighlightRanges(null);
+
+    try {
+      const response = await fetch(`/api/documents/${documentId}/analyze`, {
+        method: "POST",
+      });
+      const data = (await response.json()) as {
+        findings?: FindingRow[];
+        facts_summary?: FactsSummary | null;
+        error?: { code?: string; message?: string };
+      };
+
+      if (!response.ok || !data.findings) {
+        setFindingsStatus("error");
+        setFindingsError(data.error?.code ?? "unknown");
+        return;
+      }
+
+      if (data.facts_summary) {
+        setFactsSummary(data.facts_summary);
+      }
+
+      setFindings(data.findings);
+      setFindingsStatus("succeeded");
+      setPlaybookUsed(hasServerSaved ? "saved" : "defaults");
+    } catch {
+      setFindingsStatus("error");
+      setFindingsError("network_error");
+    }
+  };
+
+  const handleSelectFinding = (finding: FindingRow) => {
+    setSelectedFindingId(finding.id);
+    setSelectedClause(null);
+    const evidenceList = (Array.isArray(finding.evidence)
+      ? finding.evidence
+      : []) as FindingEvidenceItem[];
+
+    setHighlightRanges(
+      evidenceList.map((e) => ({
+        id: e.clause_id,
+        page_number: e.page_number,
+        char_start: e.char_start,
+        char_end: e.char_end,
+      })),
+    );
+
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setActiveMobileTab("document");
+    }
+  };
+
+  const handleSelectEvidence = (finding: FindingRow, evidenceItem: FindingEvidenceItem) => {
+    setSelectedFindingId(finding.id);
+    setSelectedClause(null);
+    setHighlightRanges([
+      {
+        id: evidenceItem.clause_id,
+        page_number: evidenceItem.page_number,
+        char_start: evidenceItem.char_start,
+        char_end: evidenceItem.char_end,
+      },
+    ]);
+
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setActiveMobileTab("document");
+    }
+  };
+
   const handleSelectClause = (clause: ClauseDto) => {
+    setSelectedFindingId(null);
+    setHighlightRanges(null);
     setSelectedClause({
       id: clause.id,
       page_number: clause.page_number,
@@ -207,6 +330,7 @@ export function ContractWorkspace() {
         await Promise.all([
           loadPlaybookForDocument(json.document.id),
           loadClausesForDocument(json.document.id),
+          loadFindingsForDocument(json.document.id),
         ]);
       } catch {
         if (!cancelled) {
@@ -303,6 +427,7 @@ export function ContractWorkspace() {
         window.history.replaceState(null, "", nextUrl.toString());
         void loadPlaybookForDocument(parsed.document.id);
         void loadClausesForDocument(parsed.document.id);
+        void loadFindingsForDocument(parsed.document.id);
         return;
       }
 
@@ -340,6 +465,11 @@ export function ContractWorkspace() {
     setExtractStatus("idle");
     setExtractError(null);
     setSelectedClause(null);
+    setFindings([]);
+    setFindingsStatus("idle");
+    setFindingsError(null);
+    setSelectedFindingId(null);
+    setHighlightRanges(null);
     setActiveRightTab("playbook");
 
     const nextUrl = new URL(window.location.href);
@@ -522,6 +652,7 @@ export function ContractWorkspace() {
               error={docError}
               documentData={documentData}
               selectedClause={selectedClause}
+              highlightRanges={highlightRanges}
               onFileSelected={handleFileSelected}
               onReset={handleResetDocument}
             />
@@ -536,11 +667,11 @@ export function ContractWorkspace() {
             }`}
           >
             <div className="space-y-4">
-              {/* Right pane inner switch: Playbook | Clauses */}
+              {/* Right pane inner switch: Playbook | Clauses | Findings */}
               <div
                 role="tablist"
                 aria-label={messages.tabs.rightPaneLabel}
-                className="grid grid-cols-2 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1"
+                className="grid grid-cols-3 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1"
               >
                 <button
                   type="button"
@@ -549,7 +680,7 @@ export function ContractWorkspace() {
                   aria-selected={activeRightTab === "playbook"}
                   aria-controls="panel-inner-playbook"
                   onClick={() => setActiveRightTab("playbook")}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
                     activeRightTab === "playbook"
                       ? "bg-surface-panel text-text-primary shadow-xs"
                       : "text-text-secondary hover:text-text-primary"
@@ -564,7 +695,7 @@ export function ContractWorkspace() {
                   aria-selected={activeRightTab === "clauses"}
                   aria-controls="panel-inner-clauses"
                   onClick={() => setActiveRightTab("clauses")}
-                  className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
                     activeRightTab === "clauses"
                       ? "bg-surface-panel text-text-primary shadow-xs"
                       : "text-text-secondary hover:text-text-primary"
@@ -574,6 +705,26 @@ export function ContractWorkspace() {
                   {clauses.length > 0 ? (
                     <span className="rounded-full bg-accent-primary px-1.5 py-0.2 text-[10px] text-text-inverse">
                       {clauses.length}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-inner-findings"
+                  aria-selected={activeRightTab === "findings"}
+                  aria-controls="panel-inner-findings"
+                  onClick={() => setActiveRightTab("findings")}
+                  className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
+                    activeRightTab === "findings"
+                      ? "bg-surface-panel text-text-primary shadow-xs"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>{messages.tabs.findings}</span>
+                  {findings.length > 0 ? (
+                    <span className="rounded-full bg-accent-primary px-1.5 py-0.2 text-[10px] text-text-inverse">
+                      {findings.length}
                     </span>
                   ) : null}
                 </button>
@@ -607,9 +758,12 @@ export function ContractWorkspace() {
                     onSave={() => void handleSavePlaybook()}
                     onExtractClauses={handleExtractClauses}
                     isExtracting={extractStatus === "running"}
+                    hasClauses={clauses.length > 0}
+                    onAnalyzeRisks={handleAnalyzeRisks}
+                    isAnalyzingRisks={findingsStatus === "running"}
                   />
                 </div>
-              ) : (
+              ) : activeRightTab === "clauses" ? (
                 <div
                   id="panel-inner-clauses"
                   role="tabpanel"
@@ -631,6 +785,30 @@ export function ContractWorkspace() {
                       Boolean(playbookLoadError) ||
                       extractStatus === "running"
                     }
+                  />
+                </div>
+              ) : (
+                <div
+                  id="panel-inner-findings"
+                  role="tabpanel"
+                  aria-labelledby="tab-inner-findings"
+                >
+                  <FindingsPane
+                    messages={messages.findingsPane}
+                    locale={locale}
+                    documentId={documentData?.document.id ?? null}
+                    status={findingsStatus}
+                    errorCode={findingsError}
+                    isStale={isPlaybookStale}
+                    findings={findings}
+                    playbookUsed={playbookUsed}
+                    hasClauses={clauses.length > 0}
+                    selectedFindingId={selectedFindingId}
+                    onSelectFinding={handleSelectFinding}
+                    onSelectEvidence={handleSelectEvidence}
+                    onAnalyze={handleAnalyzeRisks}
+                    isAnalyzing={findingsStatus === "running"}
+                    factsSummary={factsSummary}
                   />
                 </div>
               )}

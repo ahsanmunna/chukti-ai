@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runLlmCheck, runModelCheck, sanitizeMessage } from "@/scripts/llm-check";
 
+interface MockRequestBody {
+  contents?: Array<{ parts?: Array<{ text?: string }> }>;
+  generationConfig?: {
+    responseMimeType?: string;
+    responseSchema?: unknown;
+  };
+}
+
 describe("scripts/llm-check unit tests", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -20,7 +28,7 @@ describe("scripts/llm-check unit tests", () => {
   it("sends correct plain request format and parses success", async () => {
     let capturedUrl = "";
     let capturedHeaders: Record<string, string> = {};
-    let capturedBody: any = null;
+    let capturedBody: MockRequestBody = {};
 
     const mockFetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       capturedUrl = url;
@@ -48,12 +56,12 @@ describe("scripts/llm-check unit tests", () => {
     expect(capturedUrl).toContain("models/gemini-3.6-flash:generateContent");
     expect(capturedHeaders["x-goog-api-key"]).toBe("my-test-key");
     expect(capturedHeaders["Content-Type"]).toBe("application/json");
-    expect(capturedBody.contents[0].parts[0].text).toBe("Reply with the single word OK");
+    expect(capturedBody.contents?.[0]?.parts?.[0]?.text).toBe("Reply with the single word OK");
     expect(capturedBody.generationConfig).toBeUndefined();
   });
 
   it("sends correct structured request format with responseSchema", async () => {
-    let capturedBody: any = null;
+    let capturedBody: MockRequestBody = {};
 
     const mockFetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
       capturedBody = JSON.parse(init?.body as string);
@@ -75,8 +83,8 @@ describe("scripts/llm-check unit tests", () => {
     );
 
     expect(result.passed).toBe(true);
-    expect(capturedBody.generationConfig.responseMimeType).toBe("application/json");
-    expect(capturedBody.generationConfig.responseSchema).toEqual({
+    expect(capturedBody.generationConfig?.responseMimeType).toBe("application/json");
+    expect(capturedBody.generationConfig?.responseSchema).toEqual({
       type: "OBJECT",
       properties: {
         ok: {

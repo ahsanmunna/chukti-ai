@@ -15,7 +15,8 @@
     "rightPaneLabel": "Contract analysis sections",
     "document": "Contract document",
     "playbook": "Playbook",
-    "clauses": "Clauses"
+    "clauses": "Clauses",
+    "findings": "Findings"
   },
   "documentPane": {
     "title": "Contract PDF",
@@ -82,6 +83,10 @@
     "extractNotice": "Extracting sends the contract text to Google's Gemini API (free tier; Google may use it to improve its products). Do not analyze confidential contracts.",
     "riskAnalysisRow": "Risk analysis",
     "riskAnalysisNote": "Available in the next phase",
+    "analyzeRisksButton": "Analyze risks",
+    "analyzingRisksButton": "Analyzing risks...",
+    "riskAnalysisNotice": "Risk analysis sends the extracted clause text to Google's Gemini API (free tier; Google may use it to improve its products). Do not analyze confidential contracts.",
+    "riskRequiresClausesNote": "Extract clauses first to run risk analysis",
     "fieldErrors": {
       "liability_cap.max_multiple_of_fees": "Enter a number from 0.5 to 10.",
       "payment_terms.max_days_to_pay": "Enter a whole number from 1 to 120.",
@@ -139,6 +144,7 @@
     "retryButton": "Try again",
     "cachedNotice": "Reused from an earlier analysis of this same file.",
     "resultsSummary": "{count} clauses found. {rejected} suggested quotes were discarded because they could not be matched to the document text.",
+    "verifiedHeaderNotice": "Every quote below was found word-for-word in the document.",
     "verifiedBadge": "Quote verified in document text",
     "lowConfidenceBadge": "Low model confidence",
     "pageLabel": "Page",
@@ -167,6 +173,340 @@
       "not_found": "Something went wrong on our side. Please try again.",
       "internal_error": "Something went wrong on our side. Please try again.",
       "network_error": "Connection error. Please check your internet connection and try again.",
+      "unknown": "Something went wrong on our side. Please try again."
+    }
+  },
+  "findingsPane": {
+    "tabTitle": "Findings",
+    "notAnalyzedHeading": "Not analyzed yet",
+    "notAnalyzedDescription": "Run risk analysis to extract clause facts and compare them against your playbook.",
+    "analyzeButton": "Analyze risks",
+    "analyzingButton": "Analyzing risks...",
+    "runningTitle": "Analyzing contract risks...",
+    "runningDescription": "Extracting clause facts and comparing against your playbook...",
+    "errorTitle": "Risk analysis failed",
+    "retryButton": "Try again",
+    "staleNotice": "Playbook changed since this analysis. Re-run to apply.",
+    "reRunButton": "Re-run analysis",
+    "cachedNotice": "Reused facts from earlier analysis",
+    "noFindings": "No findings under the current rules. This is not a guarantee.",
+    "playbookUsedSaved": "Playbook used: saved",
+    "playbookUsedDefaults": "Playbook used: defaults",
+    "prioritizationNotice": "Severity and priority are prioritization aids, never legal probabilities.",
+    "summaryTotal": "{count} total findings",
+    "severityLabels": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "lawyerReviewBadge": "Needs lawyer review",
+    "lawyerReviewReasons": {
+      "rule_requires_review": "Rule recommends independent legal verification",
+      "conflicting_facts": "Multiple clauses in the contract state conflicting terms",
+      "unspecified_facts": "The contract does not specify this term",
+      "unspecified_payment_terms": "Payment timeline is missing or unspecified",
+      "unspecified_days_to_pay": "Payment timeline is missing or unspecified",
+      "no_payment_clause": "No payment clause was found in the contract",
+      "unspecified_liability_cap": "Liability cap terms are missing or unspecified",
+      "no_liability_clause": "No liability clause was found in the contract",
+      "unspecified_liability_cap_multiple": "Liability cap multiple is unspecified",
+      "foreign_governing_law_uncertainty": "Foreign governing law creates forum cost and local enforceability uncertainty",
+      "low_model_confidence": "Clause quote was extracted with low model confidence",
+      "facts_dropped": "Some details of this clause type could not be confirmed in the document text, so this result may be incomplete."
+    },
+    "whyThisMatters": "Why this matters",
+    "whatToAskFor": "What to ask for",
+    "evidenceTitle": "Evidence",
+    "moreRelatedPassages": "{n} more related passages",
+    "showFewerPassages": "Show fewer passages",
+    "factsConfirmed": "Details confirmed for {verified} of {total} clauses.",
+    "factsSummaryLine": "Details found in {extracted} clauses. {none} clauses state nothing we check.",
+    "factsWarningLine": "{failed} clauses could not be confirmed in the document text.",
+    "yesLabel": "Yes",
+    "noLabel": "No",
+    "detailsUsed": "Details used",
+    "pageLabel": "Page",
+    "defaultVsLine": "Contract terms differ from standard rules.",
+    "defaultReason": "This clause introduces legal exposure.",
+    "defaultRecommendation": "Ask the client to clarify or amend this term.",
+    "defaultEvent": "invoice",
+    "triggers": {
+      "acceptance": "acceptance",
+      "delivery_and_acceptance": "delivery and acceptance",
+      "delivery": "delivery",
+      "invoice_receipt": "invoice receipt",
+      "milestone": "milestone completion",
+      "other": "specified trigger"
+    },
+    "factLabels": {
+      "fields": {
+        "amount": "Fee amount",
+        "arbitration_foreign_seat": "Foreign arbitration seat",
+        "cap_multiple_of_fees": "Cap multiple of fees",
+        "client_convenience_termination": "Client convenience termination",
+        "client_may_withhold": "Client withholding",
+        "client_sole_discretion_acceptance": "Client sole discretion acceptance",
+        "clock_starts_at": "Clock starts at",
+        "conditional_on_payment": "Conditional on payment",
+        "conflicting_values": "Conflicting values",
+        "contractor_liability": "Contractor liability",
+        "currency": "Currency",
+        "days_to_pay": "Days to pay",
+        "defined_term": "Defined term",
+        "diff": "Difference",
+        "dispute_forum": "Dispute forum",
+        "extra_work_without_additional_fee": "Extra work without additional fee",
+        "foreign_to_bangladesh": "Foreign to Bangladesh",
+        "governing_law_name": "Governing law",
+        "handover_required": "Handover required",
+        "includes_indirect_or_consequential_losses": "Includes indirect or consequential losses",
+        "indemnifying_party": "Indemnifying party",
+        "max_multiple_of_fees": "Playbook max fee multiple",
+        "min_notice_days": "Playbook minimum notice days",
+        "notice_days": "Notice days",
+        "payment_for_work_done": "Payment for work done",
+        "payment_trigger": "Payment trigger",
+        "playbook_max_days": "Playbook maximum days",
+        "playbook_preference": "Playbook IP preference",
+        "reason": "Reason",
+        "references_defined_losses": "References defined losses",
+        "require_cap": "Require liability cap",
+        "require_pay_work_done": "Require payment for work done",
+        "require_written_change_order": "Require written change order",
+        "scope": "Indemnity scope",
+        "seat": "Dispute seat",
+        "total_fee_amount": "Total fee amount",
+        "transfer_timing": "IP transfer timing",
+        "written_change_order_required": "Written change order required"
+      },
+      "values": {
+        "client_convenience_termination": {
+          "no": "not permitted",
+          "unspecified": "unspecified",
+          "yes": "permitted"
+        },
+        "client_may_withhold": {
+          "disputed_portion_only": "disputed portion only",
+          "for_unaccepted_work": "for unaccepted work",
+          "no": "no withholding allowed",
+          "unspecified": "unspecified"
+        },
+        "client_sole_discretion_acceptance": {
+          "no": "objective acceptance",
+          "unspecified": "unspecified",
+          "yes": "client sole discretion"
+        },
+        "clock_starts_at": {
+          "acceptance": "client acceptance",
+          "delivery": "delivery",
+          "delivery_and_acceptance": "delivery and acceptance",
+          "invoice_receipt": "invoice receipt",
+          "milestone": "milestone completion",
+          "other": "other event",
+          "unspecified": "unspecified"
+        },
+        "conditional_on_payment": {
+          "no": "not conditional on payment",
+          "unspecified": "unspecified",
+          "yes": "conditional on payment"
+        },
+        "contractor_liability": {
+          "capped": "capped",
+          "excluded": "excluded",
+          "unlimited": "unlimited",
+          "unspecified": "unspecified"
+        },
+        "dispute_forum": {
+          "arbitration": "arbitration",
+          "courts": "courts",
+          "unspecified": "unspecified"
+        },
+        "extra_work_without_additional_fee": {
+          "no": "not permitted without fee",
+          "unspecified": "unspecified",
+          "yes": "permitted without fee"
+        },
+        "foreign_to_bangladesh": {
+          "no": "Bangladesh jurisdiction",
+          "unspecified": "unspecified",
+          "yes": "foreign jurisdiction"
+        },
+        "handover_required": {
+          "no": "not required",
+          "unspecified": "unspecified",
+          "yes": "required"
+        },
+        "includes_indirect_or_consequential_losses": {
+          "no": "excludes indirect or consequential losses",
+          "unspecified": "unspecified",
+          "yes": "includes indirect or consequential losses"
+        },
+        "indemnifying_party": {
+          "client": "client only",
+          "contractor": "contractor only",
+          "mutual": "mutual",
+          "unspecified": "unspecified"
+        },
+        "payment_for_work_done": {
+          "full": "full payment for all work done",
+          "none": "no payment for work done",
+          "only_invoiced": "only invoiced work",
+          "unspecified": "unspecified"
+        },
+        "payment_trigger": {
+          "acceptance": "client acceptance",
+          "delivery": "delivery",
+          "delivery_and_acceptance": "delivery and acceptance",
+          "invoice_receipt": "invoice receipt",
+          "milestone": "milestone completion",
+          "other": "other event",
+          "unspecified": "unspecified"
+        },
+        "playbook_preference": {
+          "license_only": "you keep ownership and the client gets a license",
+          "no_requirement": "no specific IP requirement",
+          "transfer_after_full_payment": "ownership transfers after full payment",
+          "transfer_on_delivery": "ownership transfers upon delivery"
+        },
+        "reason": {
+          "no_liability_clause": "No liability clause found in the contract.",
+          "no_payment_clause": "No payment terms clause found in the contract.",
+          "unspecified_days_to_pay": "Payment deadline is not specified in the contract.",
+          "unspecified_liability_cap": "Liability cap is not specified in the contract.",
+          "unspecified_liability_cap_multiple": "Liability cap multiple of fees is not specified."
+        },
+        "references_defined_losses": {
+          "no": "no",
+          "unspecified": "unspecified",
+          "yes": "yes"
+        },
+        "scope": {
+          "broad": "broad",
+          "limited": "limited",
+          "unspecified": "unspecified"
+        },
+        "transfer_timing": {
+          "license_only": "the client gets a license only",
+          "on_creation": "ownership transfers when the work is created",
+          "on_delivery": "ownership transfers upon delivery",
+          "on_full_payment": "ownership transfers after full payment",
+          "unspecified": "not stated"
+        },
+        "written_change_order_required": {
+          "no": "not required",
+          "unspecified": "unspecified",
+          "yes": "required"
+        }
+      }
+    },
+    "rules": {
+      "PAY-1": {
+        "title": "Payment deadline exceeds playbook limit",
+        "vsLine": "Your rule: payment within {playbook_max_days} days. Contract: payment within {days_to_pay} days.",
+        "reason": "Payment timeline is longer than your preferred limit, increasing cash flow risk.",
+        "recommendation": "Ask for payment within {playbook_max_days} days of invoice.",
+        "uncertainty": null,
+        "financialConsequence": "Payment of {amount} {currency} could arrive {days_to_pay} days after {event}."
+      },
+      "PAY-2": {
+        "title": "Payment conditional on client acceptance or withholding permitted",
+        "vsLine": "Your rule: payment upon delivery or invoice without withholding. Contract: {contract_terms}.",
+        "reason": "Client can delay payment pending subjective acceptance or withhold fees unilaterally.",
+        "recommendation": "Ask for payment tied to delivery or invoice receipt, and remove unilateral withholding.",
+        "uncertainty": null,
+        "financialConsequence": null
+      },
+      "PAY-3": {
+        "title": "Payment timeline missing or unspecified",
+        "vsLine": "Your rule: clearly defined payment deadline. Contract: payment deadline is missing or unspecified.",
+        "reason": "Without an explicit payment deadline, payment timing is legally uncertain.",
+        "recommendation": "Ask for a clear payment deadline (e.g., net 15 or net 30 calendar days).",
+        "uncertainty": "Contract omits or obscures standard payment timeline.",
+        "financialConsequence": null
+      },
+      "LIAB-1": {
+        "title": "Liability cap missing, unlimited, or exceeds limit",
+        "vsLine": "Your rule: liability must be capped. Contract: liability is unlimited.",
+        "vsLineUnlimited": "Your rule: liability must be capped. Contract: liability is unlimited.",
+        "vsLineCapped": "Your rule: liability capped at {max_multiple_of_fees}x fees. Contract: liability is capped at {cap_multiple_of_fees}x fees.",
+        "vsLineCappedUnspecified": "Your rule: liability capped at {max_multiple_of_fees}x fees. Contract: liability cap multiple is unspecified.",
+        "vsLineUnspecified": "Your rule: liability must be capped. Contract: liability terms are unspecified.",
+        "reason": "Unlimited or un-capped liability puts all your business and personal assets at risk.",
+        "recommendation": "Ask for a liability cap equal to or less than total fees paid under this agreement.",
+        "uncertainty": null,
+        "financialConsequence": null
+      },
+      "IP-1": {
+        "title": "Intellectual property transfers before full payment",
+        "vsLine": "Your rule: {playbook_preference}. Contract: {transfer_timing}.",
+        "reason": "Transferring IP ownership before payment is received leaves you without leverage if the client defaults.",
+        "recommendation": "Ask for IP ownership to transfer only upon receipt of full payment.",
+        "uncertainty": null,
+        "financialConsequence": null
+      },
+      "TERM-1": {
+        "title": "Client convenience termination notice period too short",
+        "vsLine": "Your rule: at least {min_notice_days} days notice. Contract: {notice_days} days notice.",
+        "reason": "The client can terminate abruptly with insufficient notice, leaving unbillable pipeline gaps.",
+        "recommendation": "Ask for at least {min_notice_days} days written notice before convenience termination.",
+        "uncertainty": null,
+        "financialConsequence": null
+      },
+      "TERM-2": {
+        "title": "No guaranteed payment for work completed upon termination",
+        "vsLine": "Your rule: full payment for all work done upon termination. Contract: {payment_for_work_done}.",
+        "reason": "Contract does not guarantee fair pro-rata payment for time and deliverables completed before termination.",
+        "recommendation": "Ask for clause confirming full pro-rata compensation for all work completed up to termination date.",
+        "uncertainty": null,
+        "financialConsequence": null
+      },
+      "SCOPE-1": {
+        "title": "Extra work without change order or fee",
+        "vsLine": "Your rule: written change orders required for extra work. Contract: extra work allowed without change order or additional fee.",
+        "reason": "Contract allows client to request extra tasks without written change orders or additional fees.",
+        "recommendation": "Ask for a requirement that all scope additions be agreed in a written signed change order with additional compensation.",
+        "uncertainty": null,
+        "financialConsequence": null
+      },
+      "LAW-1": {
+        "title": "Foreign governing law and jurisdiction",
+        "vsLine": "Your rule: Bangladesh governing law and local dispute resolution. Contract: governed by {governing_law_name}.",
+        "reason": "Contract is governed by foreign law or foreign arbitration, creating heavy cost and legal hurdles if a dispute arises.",
+        "recommendation": "Ask for governing law of Bangladesh, or at least dispute resolution within Bangladesh.",
+        "uncertainty": "Enforcing foreign judgments or arbitrating abroad is cost-prohibitive for local developers.",
+        "financialConsequence": null
+      },
+      "IND-1": {
+        "title": "Broad one-sided contractor indemnity",
+        "vsLine": "Your rule: mutual or limited contractor indemnity. Contract: broad one-sided contractor indemnity.",
+        "reason": "You are required to hold the client harmless against broad claims, potentially covering third-party losses.",
+        "recommendation": "Ask to limit indemnity to direct damages caused by your gross negligence or breach, or make indemnity mutual.",
+        "uncertainty": null,
+        "financialConsequence": null
+      },
+      "DEF-1": {
+        "title": "Defined losses include indirect or consequential damages",
+        "vsLine": "Your rule: exclude indirect and consequential damages. Contract: defined losses include indirect or consequential damages.",
+        "reason": "The contract defines recoverable losses to include indirect or consequential damages.",
+        "recommendation": "Ask to expressly exclude indirect, incidental, and consequential damages.",
+        "uncertainty": null,
+        "financialConsequence": null
+      }
+    },
+    "errorCodes": {
+      "no_clauses": "No clauses have been extracted yet. Please extract clauses first.",
+      "analysis_in_progress": "A risk analysis is already running for this document. Please wait for it to complete.",
+      "rate_limited_local": "Hourly analysis limit reached. Please wait before running another analysis.",
+      "llm_not_configured": "The AI service is not configured. Please contact support or check server settings.",
+      "llm_rate_limited": "The AI service is currently busy. Please wait a moment and try again.",
+      "llm_unavailable": "The AI service is temporarily unavailable. Please try again shortly.",
+      "llm_invalid_output": "The AI response could not be processed. Please try again.",
+      "llm_blocked": "This contract content could not be analyzed due to AI safety filters.",
+      "llm_bad_request": "Something went wrong on our side. Please try again.",
+      "network_error": "Connection error. Please check your internet connection and try again.",
+      "database_error": "Something went wrong on our side. Please try again.",
+      "internal_error": "Something went wrong on our side. Please try again.",
       "unknown": "Something went wrong on our side. Please try again."
     }
   }
