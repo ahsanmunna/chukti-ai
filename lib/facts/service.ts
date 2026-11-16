@@ -285,37 +285,43 @@ export async function ensureDocumentFacts(
     // If markers are still absent after the first call, make ONE follow-up call containing only those clauses
     const absentClauses = clauses.filter((c) => !clauseItemsMap.has(c.id));
     if (absentClauses.length > 0) {
-      const followUp = buildFactsUserPrompt(
-        absentClauses.map((c) => ({
-          id: c.id,
-          clause_type: c.clause_type,
-          page_number: c.page_number,
-          verbatim_text: c.verbatim_text,
-        })),
-      );
+      try {
+        const followUp = buildFactsUserPrompt(
+          absentClauses.map((c) => ({
+            id: c.id,
+            clause_type: c.clause_type,
+            page_number: c.page_number,
+            verbatim_text: c.verbatim_text,
+          })),
+        );
 
-      const followUpResult = await llmClient.generateJson<{ items?: unknown[] }>({
-        system: FACTS_SYSTEM_INSTRUCTION,
-        user: followUp.promptText,
-        jsonSchema: FACTS_GEMINI_SCHEMA,
-      });
-      totalInputTokens += followUpResult.usage.inputTokens ?? 0;
-      totalOutputTokens += followUpResult.usage.outputTokens ?? 0;
+        const followUpResult = await llmClient.generateJson<{ items?: unknown[] }>({
+          system: FACTS_SYSTEM_INSTRUCTION,
+          user: followUp.promptText,
+          jsonSchema: FACTS_GEMINI_SCHEMA,
+        });
+        totalInputTokens += followUpResult.usage.inputTokens ?? 0;
+        totalOutputTokens += followUpResult.usage.outputTokens ?? 0;
 
-      const followUpParsed = factsResponseSchema.safeParse(followUpResult.json);
-      if (followUpParsed.success) {
-        const followUpSeen = new Set<string>();
-        for (const item of followUpParsed.data.items) {
-          const marker = item.clause.trim().replace(/^\[+|\]+$/g, "");
-          if (followUpSeen.has(marker)) {
-            continue;
-          }
-          followUpSeen.add(marker);
-          const target = followUp.markerMap.get(marker);
-          if (target && !clauseItemsMap.has(target.id)) {
-            clauseItemsMap.set(target.id, item);
+        const followUpParsed = factsResponseSchema.safeParse(followUpResult.json);
+        if (followUpParsed.success) {
+          const followUpSeen = new Set<string>();
+          for (const item of followUpParsed.data.items) {
+            const marker = item.clause.trim().replace(/^\[+|\]+$/g, "");
+            if (followUpSeen.has(marker)) {
+              continue;
+            }
+            followUpSeen.add(marker);
+            const target = followUp.markerMap.get(marker);
+            if (target && !clauseItemsMap.has(target.id)) {
+              clauseItemsMap.set(target.id, item);
+            }
           }
         }
+      } catch (followUpErr) {
+        // Fix 2: If the follow-up LLM call throws, do NOT fail the whole run.
+        // Keep first call's results, step 12 will mark absent clauses failed with reason 'no_item'.
+        console.warn("[facts] follow-up LLM call failed, proceeding with first call results", followUpErr);
       }
     }
 
@@ -388,27 +394,50 @@ export async function ensureDocumentFacts(
         );
 
         if (verifyResult.valid) {
-          clauseFactsMap.set(clause.id, {
-            facts: filteredFacts,
-            facts_evidence: verifyResult.quote,
-            facts_verified: true,
-            facts_status: "extracted",
-          });
-          verifiedCount++;
+          if (allNullOrUnspecified) {
+            clauseFactsMap.set(clause.id, {
+              facts: filteredFacts,
+              facts_evidence: null,
+              facts_verified: false,
+              facts_status: "none",
+            });
+            noFactsCount++;
+          } else {
+            clauseFactsMap.set(clause.id, {
+              facts: filteredFacts,
+              facts_evidence: verifyResult.quote,
+              facts_verified: true,
+              facts_status: "extracted",
+            });
+            verifiedCount++;
+          }
         } else {
-          clauseFactsMap.set(clause.id, {
-            facts: getDefaultFactsForType(clause.clause_type),
-            facts_evidence: null,
-            facts_verified: false,
-            facts_status: "failed",
-          });
-          dropped.push({
-            clause_id: clause.id,
-            clause_type: clause.clause_type,
-            reason: verifyResult.reason,
-            evidence_length: verifyResult.evidence_length,
-          });
-          failedCount++;
+          if (allNullOrUnspecified) {
+            // Fix 1: If model returns an item where all fields are null/unspecified and quote fails verification,
+            // classify it 'none', not 'failed' (nothing was asserted).
+            clauseFactsMap.set(clause.id, {
+              facts: filteredFacts,
+              facts_evidence: null,
+              facts_verified: false,
+              facts_status: "none",
+            });
+            noFactsCount++;
+          } else {
+            // Item with real values and bad/missing evidence stays 'failed'
+            clauseFactsMap.set(clause.id, {
+              facts: getDefaultFactsForType(clause.clause_type),
+              facts_evidence: null,
+              facts_verified: false,
+              facts_status: "failed",
+            });
+            dropped.push({
+              clause_id: clause.id,
+              clause_type: clause.clause_type,
+              reason: verifyResult.reason,
+              evidence_length: verifyResult.evidence_length,
+            });
+            failedCount++;
+          }
         }
       }
     }

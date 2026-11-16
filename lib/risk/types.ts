@@ -1,7 +1,7 @@
 import type { PlaybookPreferences } from "@/lib/playbook/schema";
 import type { ClauseType, RiskSeverity } from "@/lib/supabase/types";
 
-export const RISK_RULES_VERSION = "v3" as const;
+export const RISK_RULES_VERSION = "v4" as const;
 
 export type RuleSource = "playbook" | "builtin";
 
@@ -17,6 +17,9 @@ export const REGISTERED_RULE_IDS = [
   "LAW-1",
   "IND-1",
   "DEF-1",
+  "ACC-1",
+  "COMBO-1",
+  "COMBO-2",
 ] as const;
 
 export type RuleId = (typeof REGISTERED_RULE_IDS)[number];
@@ -121,6 +124,8 @@ export interface AggregatedFactsByType {
     defined_term: AggregationState<string>;
     includes_indirect_or_consequential_losses: AggregationState<string>;
     client_sole_discretion_acceptance: AggregationState<string>;
+    acceptance_decider: AggregationState<string>;
+    payment_tied_to_acceptance: AggregationState<string>;
     clauses: ClauseWithFacts[];
   };
 }

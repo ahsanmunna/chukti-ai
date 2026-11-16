@@ -77,6 +77,10 @@
     "saveErrorSummary": "Please fix the highlighted fields and try again.",
     "saveFailed": "Could not save the playbook. Please try again.",
     "analyzeButton": "Analyze contract",
+    "analyzeContractButton": "Analyze contract",
+    "stepReadingClauses": "Step 1 of 2: reading clauses",
+    "stepCheckingRisks": "Step 2 of 2: checking risks",
+    "stepTimeEstimate": "This can take about a minute",
     "analyzeNotImplemented": "Available in the next phase",
     "extractButton": "Extract clauses",
     "extractingButton": "Extracting clauses...",
@@ -212,6 +216,7 @@
       "no_liability_clause": "No liability clause was found in the contract",
       "unspecified_liability_cap_multiple": "Liability cap multiple is unspecified",
       "foreign_governing_law_uncertainty": "Foreign governing law creates forum cost and local enforceability uncertainty",
+      "combined_risk": "Multiple clauses combine to create elevated exposure",
       "low_model_confidence": "Clause quote was extracted with low model confidence",
       "facts_dropped": "Some details of this clause type could not be confirmed in the document text, so this result may be incomplete."
     },
@@ -241,6 +246,7 @@
     },
     "factLabels": {
       "fields": {
+        "acceptance_decider": "Acceptance decider",
         "amount": "Fee amount",
         "arbitration_foreign_seat": "Foreign arbitration seat",
         "cap_multiple_of_fees": "Cap multiple of fees",
@@ -266,6 +272,7 @@
         "min_notice_days": "Playbook minimum notice days",
         "notice_days": "Notice days",
         "payment_for_work_done": "Payment for work done",
+        "payment_tied_to_acceptance": "Payment tied to acceptance",
         "payment_trigger": "Payment trigger",
         "playbook_max_days": "Playbook maximum days",
         "playbook_preference": "Playbook IP preference",
@@ -276,11 +283,18 @@
         "require_written_change_order": "Require written change order",
         "scope": "Indemnity scope",
         "seat": "Dispute seat",
+        "source_rules": "Combined rules",
         "total_fee_amount": "Total fee amount",
         "transfer_timing": "IP transfer timing",
         "written_change_order_required": "Written change order required"
       },
       "values": {
+        "acceptance_decider": {
+          "client_sole": "client sole discretion",
+          "mutual_or_objective": "mutual agreement or objective criteria",
+          "not_specified": "not specified",
+          "unspecified": "unspecified"
+        },
         "client_convenience_termination": {
           "no": "not permitted",
           "unspecified": "unspecified",
@@ -353,6 +367,12 @@
           "none": "no payment for work done",
           "only_invoiced": "only invoiced work",
           "unspecified": "unspecified"
+        },
+        "payment_tied_to_acceptance": {
+          "no": "no",
+          "payment_clause_present": "payment clause present",
+          "unspecified": "unspecified",
+          "yes": "yes"
         },
         "payment_trigger": {
           "acceptance": "client acceptance",
@@ -491,6 +511,30 @@
         "reason": "The contract defines recoverable losses to include indirect or consequential damages.",
         "recommendation": "Ask to expressly exclude indirect, incidental, and consequential damages.",
         "uncertainty": null,
+        "financialConsequence": null
+      },
+      "ACC-1": {
+        "title": "Client sole discretion acceptance tied to payment",
+        "vsLine": "Your rule: objective acceptance criteria. Contract: {acceptance_decider}.",
+        "reason": "Client has sole discretion over whether work is accepted while payment is tied to that acceptance.",
+        "recommendation": "Require objective acceptance criteria or deemed acceptance within a fixed number of days.",
+        "uncertainty": null,
+        "financialConsequence": null
+      },
+      "COMBO-1": {
+        "title": "IP transferred before payment with long payment term",
+        "vsLine": "Combined risk ({source_rules}): IP transfers {transfer_timing} with net {days_to_pay} days payment term.",
+        "reason": "Transferring intellectual property rights before full payment, combined with extended payment terms ({days_to_pay} days), leaves you without leverage if the client delays or defaults on payment.",
+        "recommendation": "Require IP ownership to transfer only after receipt of full payment, and negotiate shorter payment terms.",
+        "uncertainty": "Combined risk evaluated across IP and payment clauses.",
+        "financialConsequence": null
+      },
+      "COMBO-2": {
+        "title": "Walk-away exposure with unpaid IP transfer",
+        "vsLine": "Combined risk ({source_rules}): IP transfers to client while client can terminate with {notice_days} days notice and {payment_for_work_done}.",
+        "reason": "The client acquires IP ownership while retaining the right to terminate for convenience without paying for work done, allowing them to walk away with your work uncompensated.",
+        "recommendation": "Ensure IP remains with contractor until full payment and contract requires full pro-rata compensation for all work completed prior to termination.",
+        "uncertainty": "Combined risk evaluated across IP and termination clauses.",
         "financialConsequence": null
       }
     },

@@ -196,7 +196,33 @@ export const riskyContractClauses: ClauseWithFacts[] = [
       "Losses means all direct, indirect, special, incidental, punitive, or consequential damages",
     facts_verified: true,
     facts_status: "extracted",
-    facts_prompt_version: "v3",
+    facts_prompt_version: "v4",
+  },
+  {
+    id: "99999999-9999-4999-8999-999999999999",
+    document_id: "00000000-0000-4000-8000-000000000000",
+    run_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    clause_type: "definition",
+    verbatim_text:
+      "Acceptance means the Client's written confirmation that a Deliverable satisfies its requirements in Client's sole discretion.",
+    page_number: 1,
+    char_start: 360,
+    char_end: 485,
+    verbatim_verified: true,
+    extraction_confidence: "high",
+    page_mismatch: false,
+    facts: {
+      defined_term: "Acceptance",
+      includes_indirect_or_consequential_losses: "unspecified",
+      client_sole_discretion_acceptance: "yes",
+      acceptance_decider: "client_sole",
+      payment_tied_to_acceptance: "yes",
+    },
+    facts_evidence:
+      "Acceptance means the Client's written confirmation that a Deliverable satisfies its requirements in Client's sole discretion",
+    facts_verified: true,
+    facts_status: "extracted",
+    facts_prompt_version: "v4",
   },
 ];
 
@@ -391,11 +417,13 @@ export const balancedContractClauses: ClauseWithFacts[] = [
       defined_term: "Losses",
       includes_indirect_or_consequential_losses: "no",
       client_sole_discretion_acceptance: "no",
+      acceptance_decider: "mutual_or_objective",
+      payment_tied_to_acceptance: "no",
     },
     facts_evidence:
       "include only direct verified out-of-pocket costs and explicitly excludes indirect and consequential losses",
     facts_verified: true,
     facts_status: "extracted",
-    facts_prompt_version: "v3",
+    facts_prompt_version: "v4",
   },
 ];

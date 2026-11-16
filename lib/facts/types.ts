@@ -62,6 +62,14 @@ export type PaymentForWorkDone = (typeof PAYMENT_FOR_WORK_DONE)[number];
 export const DISPUTE_FORUM = ["courts", "arbitration", "unspecified"] as const;
 export type DisputeForum = (typeof DISPUTE_FORUM)[number];
 
+export const ACCEPTANCE_DECIDER = [
+  "client_sole",
+  "mutual_or_objective",
+  "not_specified",
+  "unspecified",
+] as const;
+export type AcceptanceDecider = (typeof ACCEPTANCE_DECIDER)[number];
+
 export interface PaymentFacts {
   total_fee_amount: number | null;
   currency: string | null;
@@ -109,6 +117,8 @@ export interface DefinitionFacts {
   defined_term: string | null;
   includes_indirect_or_consequential_losses: YesNoUnspecified;
   client_sole_discretion_acceptance: YesNoUnspecified;
+  acceptance_decider: AcceptanceDecider;
+  payment_tied_to_acceptance: YesNoUnspecified;
 }
 
 export type ClauseFactsMap = {
@@ -150,6 +160,8 @@ export const rawFlatFactsSchema = z.object({
   defined_term: z.string().nullable().optional(),
   includes_indirect_or_consequential_losses: z.enum(YES_NO_UNSPECIFIED).nullable().optional(),
   client_sole_discretion_acceptance: z.enum(YES_NO_UNSPECIFIED).nullable().optional(),
+  acceptance_decider: z.enum(ACCEPTANCE_DECIDER).nullable().optional(),
+  payment_tied_to_acceptance: z.enum(YES_NO_UNSPECIFIED).nullable().optional(),
 }).passthrough();
 
 export type RawFlatFacts = z.infer<typeof rawFlatFactsSchema>;
@@ -240,6 +252,8 @@ export function getDefaultFactsForType(clauseType: ClauseType): AnyClauseFacts {
         defined_term: null,
         includes_indirect_or_consequential_losses: "unspecified",
         client_sole_discretion_acceptance: "unspecified",
+        acceptance_decider: "unspecified",
+        payment_tied_to_acceptance: "unspecified",
       };
   }
 }
@@ -297,6 +311,14 @@ export function filterFactsForClauseType(
         defined_term: typeof raw.defined_term === "string" && raw.defined_term.trim().length > 0 ? raw.defined_term.trim() : null,
         includes_indirect_or_consequential_losses: raw.includes_indirect_or_consequential_losses ?? "unspecified",
         client_sole_discretion_acceptance: raw.client_sole_discretion_acceptance ?? "unspecified",
+        acceptance_decider:
+          raw.acceptance_decider ??
+          (raw.client_sole_discretion_acceptance === "yes"
+            ? "client_sole"
+            : raw.client_sole_discretion_acceptance === "no"
+              ? "mutual_or_objective"
+              : "unspecified"),
+        payment_tied_to_acceptance: raw.payment_tied_to_acceptance ?? "unspecified",
       };
   }
 }

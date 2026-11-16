@@ -24,6 +24,10 @@ import {
 import { ClausesPane, type ExtractionStatus } from "./ClausesPane";
 import { FindingsPane, type FactsSummary, type FindingsStatus } from "./FindingsPane";
 import type { FindingEvidenceItem, FindingRow } from "@/lib/supabase/types";
+import {
+  getAnalysisErrorMessage,
+  getExtractionErrorMessage,
+} from "@/lib/ui/messages";
 import type {
   ClauseDto,
   ExtractionResponseDto,
@@ -82,6 +86,8 @@ export function ContractWorkspace() {
 
   const [findingsStatus, setFindingsStatus] = useState<FindingsStatus>("idle");
   const [findingsError, setFindingsError] = useState<string | null>(null);
+  const [analysisStep, setAnalysisStep] = useState<1 | 2 | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [findings, setFindings] = useState<FindingRow[]>([]);
   const [factsSummary, setFactsSummary] = useState<FactsSummary | null>(null);
   const [playbookUsed, setPlaybookUsed] = useState<"saved" | "defaults">("defaults");
@@ -244,6 +250,89 @@ export function ContractWorkspace() {
     } catch {
       setFindingsStatus("error");
       setFindingsError("network_error");
+    }
+  };
+
+  const handleAnalyzeContract = async () => {
+    const documentId = documentData?.document.id;
+    if (!documentId) return;
+
+    setAnalysisError(null);
+
+    // Step 1: Read clauses (skip quickly if already extracted/cached)
+    if (clauses.length === 0) {
+      setAnalysisStep(1);
+      setExtractStatus("running");
+      setExtractError(null);
+      setSelectedClause(null);
+
+      try {
+        const response = await fetch(`/api/documents/${documentId}/extract`, {
+          method: "POST",
+        });
+        const data = (await response.json()) as ExtractionResponseDto & ApiErrorResponse;
+
+        if (!response.ok || !data.run) {
+          const errCode = data.error?.code ?? "unknown";
+          setExtractStatus("error");
+          setExtractError(errCode);
+          setAnalysisStep(null);
+          setAnalysisError(getExtractionErrorMessage(errCode, locale));
+          return;
+        }
+
+        setRunData(data.run);
+        setClauses(data.clauses);
+        setExtractStatus("succeeded");
+      } catch {
+        setExtractStatus("error");
+        setExtractError("network_error");
+        setAnalysisStep(null);
+        setAnalysisError(getExtractionErrorMessage("network_error", locale));
+        return;
+      }
+    }
+
+    // Step 2: Check risks
+    setAnalysisStep(2);
+    setFindingsStatus("running");
+    setFindingsError(null);
+    setSelectedFindingId(null);
+    setHighlightRanges(null);
+
+    try {
+      const response = await fetch(`/api/documents/${documentId}/analyze`, {
+        method: "POST",
+      });
+      const data = (await response.json()) as {
+        findings?: FindingRow[];
+        facts_summary?: FactsSummary | null;
+        error?: { code?: string; message?: string };
+      };
+
+      if (!response.ok || !data.findings) {
+        const errCode = data.error?.code ?? "unknown";
+        setFindingsStatus("error");
+        setFindingsError(errCode);
+        setAnalysisStep(null);
+        setAnalysisError(getAnalysisErrorMessage(errCode, locale));
+        return;
+      }
+
+      if (data.facts_summary) {
+        setFactsSummary(data.facts_summary);
+      }
+
+      setFindings(data.findings);
+      setFindingsStatus("succeeded");
+      setPlaybookUsed(hasServerSaved ? "saved" : "defaults");
+      setAnalysisStep(null);
+      setActiveRightTab("findings");
+    } catch {
+      setFindingsStatus("error");
+      setFindingsError("network_error");
+      setAnalysisStep(null);
+      setAnalysisError(getAnalysisErrorMessage("network_error", locale));
     }
   };
 
@@ -468,6 +557,8 @@ export function ContractWorkspace() {
     setFindings([]);
     setFindingsStatus("idle");
     setFindingsError(null);
+    setAnalysisStep(null);
+    setAnalysisError(null);
     setSelectedFindingId(null);
     setHighlightRanges(null);
     setActiveRightTab("playbook");
@@ -761,6 +852,11 @@ export function ContractWorkspace() {
                     hasClauses={clauses.length > 0}
                     onAnalyzeRisks={handleAnalyzeRisks}
                     isAnalyzingRisks={findingsStatus === "running"}
+                    onAnalyzeContract={handleAnalyzeContract}
+                    isAnalyzingContract={analysisStep !== null}
+                    analysisStep={analysisStep}
+                    analysisError={analysisError}
+                    onRetryAnalysis={handleAnalyzeContract}
                   />
                 </div>
               ) : activeRightTab === "clauses" ? (
@@ -783,7 +879,8 @@ export function ContractWorkspace() {
                     isExtractDisabled={
                       !documentData?.document.id ||
                       Boolean(playbookLoadError) ||
-                      extractStatus === "running"
+                      extractStatus === "running" ||
+                      analysisStep !== null
                     }
                   />
                 </div>
@@ -806,8 +903,8 @@ export function ContractWorkspace() {
                     selectedFindingId={selectedFindingId}
                     onSelectFinding={handleSelectFinding}
                     onSelectEvidence={handleSelectEvidence}
-                    onAnalyze={handleAnalyzeRisks}
-                    isAnalyzing={findingsStatus === "running"}
+                    onAnalyze={handleAnalyzeContract}
+                    isAnalyzing={findingsStatus === "running" || analysisStep !== null}
                     factsSummary={factsSummary}
                   />
                 </div>
