@@ -516,10 +516,18 @@ export function evaluateRiskRules(
         let severity: "low" | "medium" | "high" | null = null;
 
         const condPay = ipAgg.conditional_on_payment.state === "single" ? ipAgg.conditional_on_payment.value : null;
+        const hasCondPayNo =
+          condPay === "no" ||
+          (ipAgg.conditional_on_payment.state === "conflicting" &&
+            ipAgg.conditional_on_payment.values.includes("no"));
 
         if (ipAgg.transfer_timing.state === "conflicting") {
           isConflicting = true;
-          const distinct = Array.from(new Set(ipAgg.transfer_timing.values));
+          const candidateTimings = [...ipAgg.transfer_timing.values];
+          if (hasCondPayNo) {
+            candidateTimings.push("on_creation");
+          }
+          const distinct = Array.from(new Set(candidateTimings));
           distinct.sort((a, b) => {
             const diff = rank(computeTimingSeverity(b)) - rank(computeTimingSeverity(a));
             if (diff !== 0) return diff;
@@ -527,9 +535,12 @@ export function evaluateRiskRules(
           });
           effectiveTiming = distinct[0];
           severity = computeTimingSeverity(distinct[0]);
-        } else if (condPay === "no") {
+        } else if (hasCondPayNo) {
           effectiveTiming = "on_creation";
           severity = computeTimingSeverity("on_creation");
+          if (ipAgg.transfer_timing.state === "single" && ipAgg.transfer_timing.value !== "on_creation") {
+            isConflicting = true;
+          }
         } else if (ipAgg.transfer_timing.state === "single") {
           effectiveTiming = ipAgg.transfer_timing.value;
           severity = computeTimingSeverity(effectiveTiming);
@@ -541,7 +552,7 @@ export function evaluateRiskRules(
           const supportingClauses = Array.from(
             new Set([
               ...ipAgg.transfer_timing.clauses,
-              ...(condPay === "no" ? ipAgg.conditional_on_payment.clauses : []),
+              ...(hasCondPayNo ? ipAgg.conditional_on_payment.clauses : []),
             ]),
           );
           supportingClauses.sort((a, b) => {
@@ -568,7 +579,7 @@ export function evaluateRiskRules(
             params: {
               playbook_preference: ipPref,
               transfer_timing: effectiveTiming,
-              conditional_on_payment: condPay,
+              conditional_on_payment: condPay ?? (hasCondPayNo ? "no" : null),
             },
             lawyer_review: review.lawyer_review,
             lawyer_review_reasons: review.lawyer_review_reasons,
@@ -894,6 +905,239 @@ export function evaluateRiskRules(
         lawyer_review: review.lawyer_review,
         lawyer_review_reasons: review.lawyer_review_reasons,
       });
+    }
+  }
+
+  // 12. ACC-1 (builtin): acceptance_decider = client_sole AND payment actually depends on acceptance
+  // Dependency: payment_tied_to_acceptance = yes OR payment_trigger in [acceptance, delivery_and_acceptance] OR client_may_withhold = for_unaccepted_work
+  // Severity: high. Evidence: acceptance clause plus the payment clause showing dependency.
+  {
+    const defAgg = ctx.aggregated.definition;
+    const clientSoleClauses = ctx.clauses.filter(
+      (c) =>
+        c.facts &&
+        ((c.facts as Record<string, unknown>).acceptance_decider === "client_sole" ||
+          (c.clause_type === "definition" &&
+            (c.facts as Record<string, unknown>).client_sole_discretion_acceptance === "yes")),
+    );
+
+    const isClientSole =
+      clientSoleClauses.length > 0 ||
+      (defAgg.acceptance_decider.state === "single" && defAgg.acceptance_decider.value === "client_sole") ||
+      (defAgg.acceptance_decider.state === "conflicting" && defAgg.acceptance_decider.values.includes("client_sole"));
+
+    if (isClientSole) {
+      const primaryAccClause = clientSoleClauses[0] ?? defAgg.acceptance_decider.clauses[0] ?? defAgg.clauses[0];
+
+      const accFacts = (primaryAccClause?.facts ?? {}) as Record<string, unknown>;
+      const isPaymentTied =
+        accFacts.payment_tied_to_acceptance === "yes" ||
+        (defAgg.payment_tied_to_acceptance.state === "single" && defAgg.payment_tied_to_acceptance.value === "yes") ||
+        (defAgg.payment_tied_to_acceptance.state === "conflicting" && defAgg.payment_tied_to_acceptance.values.includes("yes")) ||
+        ctx.clauses.some((c) => (c.facts as Record<string, unknown> | null)?.payment_tied_to_acceptance === "yes");
+
+      const payAgg = ctx.aggregated.payment;
+
+      // Check payment triggers: acceptance or delivery_and_acceptance
+      const triggerMatchClause = payAgg.payment_trigger.clauses.find((c) => {
+        const t = (c.facts as Record<string, unknown> | null)?.payment_trigger;
+        return t === "acceptance" || t === "delivery_and_acceptance";
+      }) ?? ctx.clauses.find((c) => {
+        if (c.clause_type !== "payment") return false;
+        const t = (c.facts as Record<string, unknown> | null)?.payment_trigger;
+        return t === "acceptance" || t === "delivery_and_acceptance";
+      });
+
+      // Check withholding: for_unaccepted_work
+      const withholdMatchClause = payAgg.client_may_withhold.clauses.find((c) => {
+        const w = (c.facts as Record<string, unknown> | null)?.client_may_withhold;
+        return w === "for_unaccepted_work";
+      }) ?? ctx.clauses.find((c) => {
+        if (c.clause_type !== "payment") return false;
+        const w = (c.facts as Record<string, unknown> | null)?.client_may_withhold;
+        return w === "for_unaccepted_work";
+      });
+
+      // Payment clause that explicitly ties payment to acceptance
+      const paymentTiedClause = ctx.clauses.find((c) => {
+        if (c.clause_type !== "payment") return false;
+        return (c.facts as Record<string, unknown> | null)?.payment_tied_to_acceptance === "yes";
+      });
+
+      const paymentDependsOnAcceptance = Boolean(
+        isPaymentTied || triggerMatchClause || withholdMatchClause,
+      );
+
+      if (paymentDependsOnAcceptance) {
+        const dependencyPaymentClause =
+          triggerMatchClause ??
+          withholdMatchClause ??
+          paymentTiedClause ??
+          payAgg.clauses[0];
+
+        const supportingClauses: ClauseWithFacts[] = [primaryAccClause];
+        if (dependencyPaymentClause && dependencyPaymentClause.id !== primaryAccClause.id) {
+          supportingClauses.push(dependencyPaymentClause);
+        }
+
+        const isConflicting =
+          defAgg.acceptance_decider.state === "conflicting" ||
+          defAgg.payment_tied_to_acceptance.state === "conflicting";
+
+        const review = evaluateLawyerReview(
+          supportingClauses,
+          false,
+          isConflicting,
+          false,
+        );
+
+        findings.push({
+          rule_id: "ACC-1",
+          rule_version: RISK_RULES_VERSION,
+          source: "builtin",
+          severity: "high",
+          priority: SEVERITY_PRIORITY_WEIGHTS.high,
+          clause_ids: supportingClauses.map((c) => c.id),
+          evidence: buildEvidenceForClauses(supportingClauses),
+          params: {
+            acceptance_decider: "client_sole",
+            payment_tied_to_acceptance: "yes",
+          },
+          lawyer_review: review.lawyer_review,
+          lawyer_review_reasons: review.lawyer_review_reasons,
+        });
+      }
+    }
+  }
+
+  // 13. COMBO-1 (builtin): "IP before payment"
+  // IP-1 fired with transfer on signing/delivery or not conditional on payment (severity medium or higher),
+  // AND PAY-1 fired (long payment term). Severity critical. Evidence: one quote from each clause.
+  {
+    const ip1Finding = findings.find((f) => f.rule_id === "IP-1");
+    const pay1Finding = findings.find((f) => f.rule_id === "PAY-1");
+
+    if (ip1Finding && pay1Finding) {
+      const isIpSeverityEligible =
+        ip1Finding.severity === "medium" ||
+        ip1Finding.severity === "high" ||
+        ip1Finding.severity === "critical";
+
+      const ipTiming = String(ip1Finding.params.transfer_timing ?? "");
+      const ipCond = String(ip1Finding.params.conditional_on_payment ?? "");
+      const isIpEligible =
+        isIpSeverityEligible &&
+        (ipTiming === "on_creation" ||
+          ipTiming === "on_delivery" ||
+          ipCond === "no");
+
+      if (isIpEligible) {
+        const ipClause =
+          ctx.clauses.find((c) => c.id === ip1Finding.clause_ids[0]) ??
+          ctx.aggregated.ip_ownership.clauses[0];
+        const payClause =
+          ctx.clauses.find((c) => c.id === pay1Finding.clause_ids[0]) ??
+          ctx.aggregated.payment.clauses[0];
+
+        const supportingClauses = [ipClause, payClause].filter(Boolean) as ClauseWithFacts[];
+        const daysToPay =
+          typeof pay1Finding.params.days_to_pay === "number"
+            ? pay1Finding.params.days_to_pay
+            : ctx.aggregated.payment.days_to_pay.state === "single"
+              ? ctx.aggregated.payment.days_to_pay.value
+              : 0;
+
+        findings.push({
+          rule_id: "COMBO-1",
+          rule_version: RISK_RULES_VERSION,
+          source: "builtin",
+          severity: "critical",
+          priority: SEVERITY_PRIORITY_WEIGHTS.critical,
+          clause_ids: supportingClauses.map((c) => c.id),
+          evidence: buildEvidenceForClauses(supportingClauses),
+          params: {
+            source_rules: ["IP-1", "PAY-1"],
+            days_to_pay: daysToPay,
+            transfer_timing: ipTiming || "on_creation",
+          },
+          lawyer_review: true,
+          lawyer_review_reasons: ["rule_requires_review", "combined_risk"],
+        });
+      }
+    }
+  }
+
+  // 14. COMBO-2 (builtin): "Walk-away exposure"
+  // IP-1 fired AND TERM-2 fired.
+  // Eligible IP transfer = effective transfer_timing in (on_creation, on_delivery) or conditional_on_payment = no.
+  // Do NOT count on_full_payment.
+  // Severity high. Evidence: one quote from each clause.
+  {
+    const ip1Finding = findings.find((f) => f.rule_id === "IP-1");
+    const term2Finding = findings.find((f) => f.rule_id === "TERM-2");
+
+    if (ip1Finding && term2Finding) {
+      const ipTiming = String(ip1Finding.params.transfer_timing ?? "");
+      const ipCond = String(ip1Finding.params.conditional_on_payment ?? "");
+      const isIpEligible =
+        ipTiming !== "on_full_payment" &&
+        (ipTiming === "on_creation" ||
+          ipTiming === "on_delivery" ||
+          ipCond === "no");
+
+      const termAgg = ctx.aggregated.termination;
+      const convTerm =
+        (termAgg.client_convenience_termination.state === "single" &&
+          termAgg.client_convenience_termination.value === "yes") ||
+        (termAgg.client_convenience_termination.state === "conflicting" &&
+          termAgg.client_convenience_termination.values.includes("yes")) ||
+        ctx.clauses.some(
+          (c) =>
+            c.clause_type === "termination" &&
+            (c.facts as Record<string, unknown> | null)?.client_convenience_termination === "yes",
+        );
+
+      if (isIpEligible && convTerm) {
+        const ipClause =
+          ctx.clauses.find((c) => c.id === ip1Finding.clause_ids[0]) ??
+          ctx.aggregated.ip_ownership.clauses[0];
+        const termClause =
+          ctx.clauses.find((c) => c.id === term2Finding.clause_ids[0]) ??
+          ctx.aggregated.termination.clauses[0];
+
+        const supportingClauses = [ipClause, termClause].filter(Boolean) as ClauseWithFacts[];
+        let noticeDays: number | null = null;
+        if (termAgg.notice_days.state === "single") {
+          noticeDays = termAgg.notice_days.value;
+        } else if (
+          typeof (termClause?.facts as Record<string, unknown> | null)?.notice_days === "number"
+        ) {
+          noticeDays = (termClause?.facts as Record<string, unknown>).notice_days as number;
+        }
+
+        const payWorkDone =
+          term2Finding.params.payment_for_work_done ??
+          (termAgg.payment_for_work_done.state === "single"
+            ? termAgg.payment_for_work_done.value
+            : "none");
+
+        findings.push({
+          rule_id: "COMBO-2",
+          rule_version: RISK_RULES_VERSION,
+          source: "builtin",
+          severity: "high",
+          priority: SEVERITY_PRIORITY_WEIGHTS.high,
+          clause_ids: supportingClauses.map((c) => c.id),
+          evidence: buildEvidenceForClauses(supportingClauses),
+          params: {
+            source_rules: ["IP-1", "TERM-2"],
+            notice_days: noticeDays,
+            payment_for_work_done: String(payWorkDone),
+          },
+          lawyer_review: true,
+          lawyer_review_reasons: ["rule_requires_review", "combined_risk"],
+        });
+      }
     }
   }
 

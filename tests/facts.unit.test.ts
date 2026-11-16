@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { applyLexicalBackstop } from "@/lib/facts/backstops";
 import {
   FACTS_PROMPT_VERSION,
   buildFactsUserPrompt,
 } from "@/lib/facts/prompt";
 import {
   CLIENT_MAY_WITHHOLD,
+  type TerminationFacts,
   factsResponseSchema,
   filterFactsForClauseType,
   getDefaultFactsForType,
@@ -160,7 +162,7 @@ describe("Facts Prompt Building (buildFactsUserPrompt)", () => {
 
     expect(markerMap.get("C1")?.id).toBe("11111111-2222-3333-4444-555555555555");
     expect(markerMap.get("C2")?.id).toBe("99999999-8888-7777-6666-555555555555");
-    expect(FACTS_PROMPT_VERSION).toBe("v3");
+    expect(FACTS_PROMPT_VERSION).toBe("v5");
   });
 });
 
@@ -227,5 +229,162 @@ describe("Facts Schema & Filtering (filterFactsForClauseType & getDefaultFactsFo
       payment_trigger: "unspecified",
       client_may_withhold: "unspecified",
     });
+  });
+
+  it("filterFactsForClauseType correctly handles foreign_to_bangladesh post-processing", () => {
+    // "England and Wales" -> yes
+    const engFacts = filterFactsForClauseType("governing_law", {
+      governing_law_name: "England and Wales",
+      foreign_to_bangladesh: "unspecified",
+    });
+    expect(engFacts.foreign_to_bangladesh).toBe("yes");
+
+    // Even if model returned "no", foreign law overrides model value
+    const engOverride = filterFactsForClauseType("governing_law", {
+      governing_law_name: "England and Wales",
+      foreign_to_bangladesh: "no",
+    });
+    expect(engOverride.foreign_to_bangladesh).toBe("yes");
+
+    // "Laws of Bangladesh" -> no
+    const bdFacts = filterFactsForClauseType("governing_law", {
+      governing_law_name: "Laws of Bangladesh",
+      foreign_to_bangladesh: "unspecified",
+    });
+    expect(bdFacts.foreign_to_bangladesh).toBe("no");
+
+    // Even if model returned "yes", Bangladesh law overrides model value to "no"
+    const bdOverride = filterFactsForClauseType("governing_law", {
+      governing_law_name: "Laws of Bangladesh",
+      foreign_to_bangladesh: "yes",
+    });
+    expect(bdOverride.foreign_to_bangladesh).toBe("no");
+
+    // null -> unchanged (keeps model value)
+    const nullFactsUnspecified = filterFactsForClauseType("governing_law", {
+      governing_law_name: null,
+      foreign_to_bangladesh: "unspecified",
+    });
+    expect(nullFactsUnspecified.foreign_to_bangladesh).toBe("unspecified");
+
+    const nullFactsYes = filterFactsForClauseType("governing_law", {
+      governing_law_name: null,
+      foreign_to_bangladesh: "yes",
+    });
+    expect(nullFactsYes.foreign_to_bangladesh).toBe("yes");
+  });
+});
+
+describe("Lexical Backstops for Termination Clauses (applyLexicalBackstop)", () => {
+  const clause92Text =
+    "9.2 The Client may terminate this Agreement for convenience at any time, with immediate effect.";
+
+  it("9.2 text triggers: sets client_convenience_termination to yes and verifies quote", () => {
+    const clause = {
+      id: "term-92",
+      clause_type: "termination" as const,
+      verbatim_text: clause92Text,
+      char_start: 0,
+    };
+    const current = {
+      facts: {
+        client_convenience_termination: "unspecified" as const,
+        notice_days: null,
+        payment_for_work_done: "unspecified" as const,
+        handover_required: "unspecified" as const,
+      },
+      facts_evidence: null,
+      facts_verified: false,
+      facts_status: "none" as const,
+    };
+
+    const res = applyLexicalBackstop(clause, current);
+    expect(res.applied).toBe(true);
+    expect((res.computed.facts as TerminationFacts).client_convenience_termination).toBe("yes");
+    expect(res.computed.facts_status).toBe("extracted");
+    expect(res.computed.facts_verified).toBe(true);
+    expect(res.computed.facts_evidence).toBe(clause92Text);
+
+    // Verify the sliced quote verifies with verifyFactEvidenceQuote
+    const quoteVerification = verifyFactEvidenceQuote(
+      clause.verbatim_text,
+      clause.char_start,
+      res.computed.facts_evidence,
+    );
+    expect(quoteVerification.valid).toBe(true);
+  });
+
+  it("'The Contractor may terminate for convenience' does NOT trigger backstop", () => {
+    const contractorText =
+      "The Contractor may terminate for convenience upon thirty (30) days notice.";
+    const clause = {
+      id: "term-contractor",
+      clause_type: "termination" as const,
+      verbatim_text: contractorText,
+      char_start: 0,
+    };
+    const current = {
+      facts: {
+        client_convenience_termination: "unspecified" as const,
+        notice_days: 30,
+        payment_for_work_done: "unspecified" as const,
+        handover_required: "unspecified" as const,
+      },
+      facts_evidence: "upon thirty (30) days notice",
+      facts_verified: true,
+      facts_status: "extracted" as const,
+    };
+
+    const res = applyLexicalBackstop(clause, current);
+    expect(res.applied).toBe(false);
+    expect((res.computed.facts as TerminationFacts).client_convenience_termination).toBe("unspecified");
+  });
+
+  it("model value 'no' is not overridden even if text matches", () => {
+    const clause = {
+      id: "term-override-test",
+      clause_type: "termination" as const,
+      verbatim_text: clause92Text,
+      char_start: 0,
+    };
+    const current = {
+      facts: {
+        client_convenience_termination: "no" as const,
+        notice_days: null,
+        payment_for_work_done: "unspecified" as const,
+        handover_required: "unspecified" as const,
+      },
+      facts_evidence: "immediate effect",
+      facts_verified: true,
+      facts_status: "extracted" as const,
+    };
+
+    const res = applyLexicalBackstop(clause, current);
+    expect(res.applied).toBe(false);
+    expect((res.computed.facts as TerminationFacts).client_convenience_termination).toBe("no");
+  });
+
+  it("model value 'yes' is not overridden", () => {
+    const clause = {
+      id: "term-yes-test",
+      clause_type: "termination" as const,
+      verbatim_text: clause92Text,
+      char_start: 0,
+    };
+    const current = {
+      facts: {
+        client_convenience_termination: "yes" as const,
+        notice_days: 0,
+        payment_for_work_done: "unspecified" as const,
+        handover_required: "unspecified" as const,
+      },
+      facts_evidence: "immediate effect",
+      facts_verified: true,
+      facts_status: "extracted" as const,
+    };
+
+    const res = applyLexicalBackstop(clause, current);
+    expect(res.applied).toBe(false);
+    expect((res.computed.facts as TerminationFacts).client_convenience_termination).toBe("yes");
   });
 });

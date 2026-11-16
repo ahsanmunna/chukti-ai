@@ -31,6 +31,11 @@ interface PlaybookPaneProps {
   hasClauses?: boolean;
   onAnalyzeRisks?: () => void;
   isAnalyzingRisks?: boolean;
+  onAnalyzeContract?: () => void;
+  isAnalyzingContract?: boolean;
+  analysisStep?: 1 | 2 | null;
+  analysisError?: string | null;
+  onRetryAnalysis?: () => void;
 }
 
 export function PlaybookPane({
@@ -53,6 +58,11 @@ export function PlaybookPane({
   hasClauses = false,
   onAnalyzeRisks,
   isAnalyzingRisks = false,
+  onAnalyzeContract,
+  isAnalyzingContract = false,
+  analysisStep = null,
+  analysisError = null,
+  onRetryAnalysis,
 }: PlaybookPaneProps) {
   const fields = messages.fields;
 
@@ -539,37 +549,85 @@ export function PlaybookPane({
                   <p>{messages.extractNotice}</p>
                 </div>
 
-                {/* Extract clauses button */}
+                {/* Step indicator while running */}
+                {isAnalyzingContract ? (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className="space-y-2 rounded-md border border-border-info bg-surface-info p-3 text-center"
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <svg
+                        className="h-4 w-4 animate-spin text-text-info"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      <p className="text-xs font-semibold text-text-info">
+                        {analysisStep === 1
+                          ? messages.stepReadingClauses
+                          : messages.stepCheckingRisks}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-text-secondary">
+                      {messages.stepTimeEstimate}
+                    </p>
+                  </div>
+                ) : null}
+
+                {/* Error message and Retry */}
+                {analysisError ? (
+                  <div
+                    role="alert"
+                    className="space-y-2 rounded-md border border-border-danger bg-surface-danger p-3 text-left"
+                  >
+                    <p className="text-xs font-semibold text-text-danger">
+                      {analysisError}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={onRetryAnalysis ?? onAnalyzeContract}
+                      className="inline-flex items-center rounded border border-border-danger bg-surface-panel px-2.5 py-1 text-xs font-semibold text-text-danger hover:bg-surface-subtle"
+                    >
+                      {messages.retryButton}
+                    </button>
+                  </div>
+                ) : null}
+
+                {/* Primary Analyze Contract Button */}
                 <button
                   type="button"
-                  onClick={onExtractClauses}
-                  disabled={!documentId || Boolean(loadError) || isExtracting}
+                  onClick={onAnalyzeContract ?? onExtractClauses}
+                  disabled={
+                    !documentId ||
+                    Boolean(loadError) ||
+                    isAnalyzingContract ||
+                    isExtracting ||
+                    isAnalyzingRisks
+                  }
                   className="w-full rounded-md bg-accent-primary px-4 py-2.5 text-sm font-semibold text-text-inverse hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:border disabled:border-border-default disabled:bg-surface-subtle disabled:text-text-secondary"
                 >
-                  {isExtracting ? messages.extractingButton : messages.extractButton}
+                  {isAnalyzingContract
+                    ? analysisStep === 1
+                      ? messages.stepReadingClauses
+                      : messages.stepCheckingRisks
+                    : messages.analyzeContractButton ?? messages.analyzeButton}
                 </button>
-
-                {/* Risk analysis section */}
-                <div className="space-y-3 border-t border-border-subtle pt-3">
-                  {/* Privacy notice for risk analysis */}
-                  <div className="rounded border border-border-warning bg-surface-warning p-2.5 text-xs text-text-warning">
-                    <p>{messages.riskAnalysisNotice}</p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={onAnalyzeRisks}
-                    disabled={!documentId || Boolean(loadError) || !hasClauses || isAnalyzingRisks}
-                    className="w-full rounded-md bg-accent-primary px-4 py-2.5 text-sm font-semibold text-text-inverse hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:border disabled:border-border-default disabled:bg-surface-subtle disabled:text-text-secondary"
-                  >
-                    {isAnalyzingRisks ? messages.analyzingRisksButton : messages.analyzeRisksButton}
-                  </button>
-                  {!hasClauses ? (
-                    <p className="text-center text-xs text-text-muted">
-                      {messages.riskRequiresClausesNote}
-                    </p>
-                  ) : null}
-                </div>
               </div>
             </div>
           </form>

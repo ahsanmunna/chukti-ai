@@ -51,6 +51,9 @@ export function formatFindingText(
         localizedParams[key] = value;
       }
     } else if (Array.isArray(value)) {
+      const joiner = key === "source_rules"
+        ? (locale === "bn" ? " ও " : " and ")
+        : ", ";
       localizedParams[key] = value
         .map((item) => {
           if (typeof item === "string" && enumMap && typeof enumMap === "object" && item in enumMap) {
@@ -58,7 +61,7 @@ export function formatFindingText(
           }
           return String(item);
         })
-        .join(", ");
+        .join(joiner);
     } else if (typeof value === "boolean") {
       localizedParams[key] = value ? (dict.yesLabel ?? "Yes") : (dict.noLabel ?? "No");
     } else {
@@ -100,6 +103,27 @@ export function formatFindingText(
       contractTerms = locale === "bn" ? "অননুমোদিত শর্ত" : "delayed payment conditions";
     }
     localizedParams.contract_terms = contractTerms;
+  } else if (finding.rule_id === "COMBO-2") {
+    const noticeDays = finding.params.notice_days;
+    const rT = ruleTemplates as unknown as Record<string, string>;
+    if (noticeDays === null || noticeDays === undefined || noticeDays === 0) {
+      vsLineTemplate = rT.vsLineNoNotice ?? ruleTemplates.vsLine;
+    }
+
+    const payWorkDone = finding.params.payment_for_work_done;
+    if (locale === "bn") {
+      if (payWorkDone === "only_invoiced") {
+        localizedParams.payment_for_work_done = "কেবলমাত্র ইনভয়েস করা কাজের পারিশ্রমিক দিতে পারে";
+      } else if (payWorkDone === "none") {
+        localizedParams.payment_for_work_done = "সম্পন্ন কাজের কোনো পারিশ্রমিক দিতে বাধ্য নয়";
+      }
+    } else {
+      if (payWorkDone === "only_invoiced") {
+        localizedParams.payment_for_work_done = "only pay for invoiced work";
+      } else if (payWorkDone === "none") {
+        localizedParams.payment_for_work_done = "pay nothing for completed work";
+      }
+    }
   }
 
   const title = interpolate(ruleTemplates.title, localizedParams);

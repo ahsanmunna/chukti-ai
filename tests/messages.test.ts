@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { FindingsPane } from "@/components/FindingsPane";
 import {
+  ACCEPTANCE_DECIDER,
   CLIENT_MAY_WITHHOLD,
   CONTRACTOR_LIABILITY,
   DISPUTE_FORUM,
@@ -268,6 +269,8 @@ describe("F4: Localized labels and no raw codes on screen", () => {
       { field: "dispute_forum", values: DISPUTE_FORUM },
       { field: "includes_indirect_or_consequential_losses", values: YES_NO_UNSPECIFIED },
       { field: "client_sole_discretion_acceptance", values: YES_NO_UNSPECIFIED },
+      { field: "acceptance_decider", values: ACCEPTANCE_DECIDER },
+      { field: "payment_tied_to_acceptance", values: YES_NO_UNSPECIFIED },
       {
         field: "playbook_preference",
         values: [

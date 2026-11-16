@@ -176,6 +176,12 @@ export function aggregateClauseFacts(clauses: ClauseWithFacts[]): AggregatedFact
       client_sole_discretion_acceptance: aggregateFieldValue<string>(definitionClauses, (f) =>
         typeof f.client_sole_discretion_acceptance === "string" ? f.client_sole_discretion_acceptance : null,
       ),
+      acceptance_decider: aggregateFieldValue<string>(definitionClauses, (f) =>
+        typeof f.acceptance_decider === "string" ? f.acceptance_decider : null,
+      ),
+      payment_tied_to_acceptance: aggregateFieldValue<string>(definitionClauses, (f) =>
+        typeof f.payment_tied_to_acceptance === "string" ? f.payment_tied_to_acceptance : null,
+      ),
       clauses: definitionClauses,
     },
   };
