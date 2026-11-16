@@ -196,7 +196,7 @@ export const riskyContractClauses: ClauseWithFacts[] = [
       "Losses means all direct, indirect, special, incidental, punitive, or consequential damages",
     facts_verified: true,
     facts_status: "extracted",
-    facts_prompt_version: "v4",
+    facts_prompt_version: "v5",
   },
   {
     id: "99999999-9999-4999-8999-999999999999",
@@ -222,7 +222,7 @@ export const riskyContractClauses: ClauseWithFacts[] = [
       "Acceptance means the Client's written confirmation that a Deliverable satisfies its requirements in Client's sole discretion",
     facts_verified: true,
     facts_status: "extracted",
-    facts_prompt_version: "v4",
+    facts_prompt_version: "v5",
   },
 ];
 
@@ -424,6 +424,6 @@ export const balancedContractClauses: ClauseWithFacts[] = [
       "include only direct verified out-of-pocket costs and explicitly excludes indirect and consequential losses",
     facts_verified: true,
     facts_status: "extracted",
-    facts_prompt_version: "v4",
+    facts_prompt_version: "v5",
   },
 ];

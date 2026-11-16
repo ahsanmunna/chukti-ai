@@ -405,6 +405,11 @@
           "limited": "limited",
           "unspecified": "unspecified"
         },
+        "source_rules": {
+          "IP-1": "IP ownership",
+          "PAY-1": "payment terms",
+          "TERM-2": "payment on termination"
+        },
         "transfer_timing": {
           "license_only": "the client gets a license only",
           "on_creation": "ownership transfers when the work is created",
@@ -522,7 +527,7 @@
       },
       "COMBO-1": {
         "title": "IP transferred before payment with long payment term",
-        "vsLine": "Combined risk ({source_rules}): IP transfers {transfer_timing} with net {days_to_pay} days payment term.",
+        "vsLine": "Combined risk ({source_rules}): {transfer_timing}, and payment is due in {days_to_pay} days.",
         "reason": "Transferring intellectual property rights before full payment, combined with extended payment terms ({days_to_pay} days), leaves you without leverage if the client delays or defaults on payment.",
         "recommendation": "Require IP ownership to transfer only after receipt of full payment, and negotiate shorter payment terms.",
         "uncertainty": "Combined risk evaluated across IP and payment clauses.",
@@ -530,8 +535,8 @@
       },
       "COMBO-2": {
         "title": "Walk-away exposure with unpaid IP transfer",
-        "vsLine": "Combined risk ({source_rules}): IP transfers to client while client can terminate with {notice_days} days notice and {payment_for_work_done}.",
-        "vsLineNoNotice": "Combined risk ({source_rules}): IP transfers to client while client can terminate and {payment_for_work_done}.",
+        "vsLine": "Combined risk ({source_rules}): the client can terminate for convenience with {notice_days} days notice and {payment_for_work_done}.",
+        "vsLineNoNotice": "Combined risk ({source_rules}): the client can terminate for convenience and {payment_for_work_done}.",
         "reason": "The client acquires IP ownership while retaining the right to terminate for convenience without paying for work done, allowing them to walk away with your work uncompensated.",
         "recommendation": "Ensure IP remains with contractor until full payment and contract requires full pro-rata compensation for all work completed prior to termination.",
         "uncertainty": "Combined risk evaluated across IP and termination clauses.",

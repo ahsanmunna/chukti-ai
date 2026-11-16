@@ -299,13 +299,22 @@ export function filterFactsForClauseType(
         written_change_order_required: raw.written_change_order_required ?? "unspecified",
         extra_work_without_additional_fee: raw.extra_work_without_additional_fee ?? "unspecified",
       };
-    case "governing_law":
+    case "governing_law": {
+      const lawName =
+        typeof raw.governing_law_name === "string" && raw.governing_law_name.trim().length > 0
+          ? raw.governing_law_name.trim()
+          : null;
+      let foreignToBangladesh = raw.foreign_to_bangladesh ?? "unspecified";
+      if (lawName !== null) {
+        foreignToBangladesh = /bangladesh/i.test(lawName) ? "no" : "yes";
+      }
       return {
-        governing_law_name: typeof raw.governing_law_name === "string" && raw.governing_law_name.trim().length > 0 ? raw.governing_law_name.trim() : null,
-        foreign_to_bangladesh: raw.foreign_to_bangladesh ?? "unspecified",
+        governing_law_name: lawName,
+        foreign_to_bangladesh: foreignToBangladesh,
         dispute_forum: raw.dispute_forum ?? "unspecified",
         seat: typeof raw.seat === "string" && raw.seat.trim().length > 0 ? raw.seat.trim() : null,
       };
+    }
     case "definition":
       return {
         defined_term: typeof raw.defined_term === "string" && raw.defined_term.trim().length > 0 ? raw.defined_term.trim() : null,

@@ -284,18 +284,18 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
     const clauses = updatedClauses as ClauseRow[];
     expect(clauses[0].facts_verified).toBe(true);
     expect(clauses[0].facts_status).toBe("extracted");
-    expect(clauses[0].facts_prompt_version).toBe("v4");
+    expect(clauses[0].facts_prompt_version).toBe("v5");
     expect(clauses[0].facts_evidence).toBe("requires a signed written change order");
 
     expect(clauses[1].facts_verified).toBe(true);
     expect(clauses[1].facts_status).toBe("extracted");
-    expect(clauses[1].facts_prompt_version).toBe("v4");
+    expect(clauses[1].facts_prompt_version).toBe("v5");
     expect(clauses[1].facts_evidence).toBe("within forty-five (45) calendar days from receipt of invoice");
 
     // Dropped clause (C3): facts_verified = false, facts_status = 'failed', facts_evidence = null, all fields unspecified/null
     expect(clauses[2].facts_verified).toBe(false);
     expect(clauses[2].facts_status).toBe("failed");
-    expect(clauses[2].facts_prompt_version).toBe("v4");
+    expect(clauses[2].facts_prompt_version).toBe("v5");
     expect(clauses[2].facts_evidence).toBeNull();
     const c3Facts = clauses[2].facts as Record<string, unknown>;
     expect(c3Facts.contractor_liability).toBe("unspecified");

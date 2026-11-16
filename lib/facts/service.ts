@@ -17,6 +17,7 @@ import {
   getDefaultFactsForType,
 } from "./types";
 import { verifyFactEvidenceQuote } from "./verify";
+import { applyLexicalBackstop } from "./backstops";
 
 export class FactsServiceError extends Error {
   readonly code: string;
@@ -442,6 +443,42 @@ export async function ensureDocumentFacts(
       }
     }
 
+    // 12b. Lexical backstops for termination clauses
+    let backstopCount = 0;
+    for (const clause of clauses) {
+      if (clause.clause_type === "termination") {
+        const computed = clauseFactsMap.get(clause.id)!;
+        const otherClausesTexts = clauses
+          .filter((c) => c.id !== clause.id)
+          .map((c) => c.verbatim_text);
+
+        const backstopResult = applyLexicalBackstop(
+          clause,
+          computed,
+          otherClausesTexts,
+          pageTexts,
+        );
+
+        if (backstopResult.applied) {
+          backstopCount++;
+          const prevStatus = computed.facts_status;
+          clauseFactsMap.set(clause.id, backstopResult.computed);
+
+          if (prevStatus === "none") {
+            noFactsCount--;
+            verifiedCount++;
+          } else if (prevStatus === "failed") {
+            failedCount--;
+            verifiedCount++;
+            const dropIdx = dropped.findIndex((d) => d.clause_id === clause.id);
+            if (dropIdx !== -1) {
+              dropped.splice(dropIdx, 1);
+            }
+          }
+        }
+      }
+    }
+
     // 13. Update clauses in DB
     const updatedClauses: ClauseRow[] = [];
     for (const clause of clauses) {
@@ -488,7 +525,7 @@ export async function ensureDocumentFacts(
 
     runFinalized = true;
     console.log(
-      `[facts] succeeded doc=${documentId} run=${factsRunId} model=${actualModel} total=${clauses.length} verified=${verifiedCount} dropped=${dropped.length} latency=${latencyMs}ms`,
+      `[facts] succeeded doc=${documentId} run=${factsRunId} model=${actualModel} total=${clauses.length} verified=${verifiedCount} backstops=${backstopCount} dropped=${dropped.length} latency=${latencyMs}ms`,
     );
 
     return {

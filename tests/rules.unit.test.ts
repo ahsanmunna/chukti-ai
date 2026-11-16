@@ -837,6 +837,33 @@ describe("Deterministic Risk Rules Boundaries", () => {
       expect(findings.find((f) => f.rule_id === "PAY-1")).toBeDefined();
     });
 
+    it("renders COMBO-1 exact expected English string with natural wording and display names", () => {
+      const ipClause = createClause({
+        id: "combo1-ip-exact",
+        clause_type: "ip_ownership",
+        facts: { transfer_timing: "on_creation" },
+      });
+      const payClause = createClause({
+        id: "combo1-pay-exact",
+        clause_type: "payment",
+        facts: { days_to_pay: 60 },
+      });
+
+      const findings = evaluateRiskRules([ipClause, payClause], basePlaybook);
+      const combo1 = findings.find((f) => f.rule_id === "COMBO-1");
+      expect(combo1).toBeDefined();
+
+      const formattedEn = formatFindingText(combo1!, "en");
+      expect(formattedEn.vsLine).toBe(
+        "Combined risk (IP ownership and payment terms): ownership transfers when the work is created, and payment is due in 60 days.",
+      );
+
+      const formattedBn = formatFindingText(combo1!, "bn");
+      expect(formattedBn.vsLine).toContain("যৌথ ঝুঁকি (মেধাস্বত্ব মালিকানা ও পেমেন্ট শর্তাবলী):");
+      expect(formattedBn.vsLine).not.toContain("IP-1");
+      expect(formattedBn.vsLine).not.toContain("PAY-1");
+    });
+
     it("fires critical when IP-1 fired with on_delivery and PAY-1 fired", () => {
       const ipClause = createClause({
         id: "combo1-ip-2",
@@ -1033,13 +1060,13 @@ describe("Deterministic Risk Rules Boundaries", () => {
       const formattedEn = formatFindingText(combo2!, "en");
       expect(formattedEn.vsLine).not.toContain("0");
       expect(formattedEn.vsLine).not.toContain("days notice");
-      expect(formattedEn.vsLine).toContain("Combined risk (IP-1, TERM-2):");
+      expect(formattedEn.vsLine).toContain("Combined risk (IP ownership and payment on termination):");
 
       const formattedBn = formatFindingText(combo2!, "bn");
       expect(formattedBn.vsLine).not.toContain("0");
       expect(formattedBn.vsLine).not.toContain("০");
       expect(formattedBn.vsLine).not.toContain("দিনের নোটিশে");
-      expect(formattedBn.vsLine).toContain("যৌথ ঝুঁকি (IP-1, TERM-2):");
+      expect(formattedBn.vsLine).toContain("যৌথ ঝুঁকি (মেধাস্বত্ব মালিকানা ও চুক্তি সমাপ্তিতে পারিশ্রমিক):");
     });
 
     it("fires high when payment_for_work_done is only_invoiced", () => {
@@ -1062,6 +1089,35 @@ describe("Deterministic Risk Rules Boundaries", () => {
       expect(combo2?.severity).toBe("high");
       expect(combo2?.params.notice_days).toBe(14);
       expect(combo2?.params.payment_for_work_done).toBe("only_invoiced");
+    });
+
+    it("renders COMBO-2 exact expected English string with natural wording and display names", () => {
+      const ipClause = createClause({
+        clause_type: "ip_ownership",
+        facts: { transfer_timing: "on_creation" },
+      });
+      const termClause = createClause({
+        clause_type: "termination",
+        facts: {
+          client_convenience_termination: "yes",
+          notice_days: null,
+          payment_for_work_done: "only_invoiced",
+        },
+      });
+
+      const findings = evaluateRiskRules([ipClause, termClause], basePlaybook);
+      const combo2 = findings.find((f) => f.rule_id === "COMBO-2");
+      expect(combo2).toBeDefined();
+
+      const formattedEn = formatFindingText(combo2!, "en");
+      expect(formattedEn.vsLine).toBe(
+        "Combined risk (IP ownership and payment on termination): the client can terminate for convenience and only pay for invoiced work.",
+      );
+
+      const formattedBn = formatFindingText(combo2!, "bn");
+      expect(formattedBn.vsLine).toContain("যৌথ ঝুঁকি (মেধাস্বত্ব মালিকানা ও চুক্তি সমাপ্তিতে পারিশ্রমিক):");
+      expect(formattedBn.vsLine).not.toContain("IP-1");
+      expect(formattedBn.vsLine).not.toContain("TERM-2");
     });
 
     it("does not fire when contractor receives full payment for work done", () => {
