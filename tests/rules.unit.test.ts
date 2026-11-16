@@ -721,7 +721,7 @@ describe("Deterministic Risk Rules Boundaries", () => {
       expect(acc1?.params.payment_tied_to_acceptance).toBe("yes");
     });
 
-    it("fires high when acceptance_decider = client_sole and a payment clause exists", () => {
+    it("fires high when acceptance_decider = client_sole and payment_trigger = acceptance", () => {
       const accClause = createClause({
         id: "acc-2",
         clause_type: "definition",
@@ -735,9 +735,9 @@ describe("Deterministic Risk Rules Boundaries", () => {
       const payClause = createClause({
         id: "pay-2",
         clause_type: "payment",
-        verbatim_text: "Invoices are payable within 30 days.",
-        facts_evidence: "payable within 30 days",
-        facts: { days_to_pay: 30 },
+        verbatim_text: "Invoices are payable within 30 days following formal written acceptance.",
+        facts_evidence: "payable within 30 days following formal written acceptance",
+        facts: { days_to_pay: 30, payment_trigger: "acceptance" },
       });
       const findings = evaluateRiskRules([accClause, payClause], basePlaybook);
       const acc1 = findings.find((f) => f.rule_id === "ACC-1");
@@ -746,6 +746,28 @@ describe("Deterministic Risk Rules Boundaries", () => {
       expect(acc1?.clause_ids).toContain("acc-2");
       expect(acc1?.clause_ids).toContain("pay-2");
       expect(acc1?.evidence).toHaveLength(2);
+    });
+
+    it("does not fire when client_sole has a delivery-only payment trigger", () => {
+      const accClause = createClause({
+        id: "acc-delivery",
+        clause_type: "definition",
+        facts: {
+          acceptance_decider: "client_sole",
+          payment_tied_to_acceptance: "no",
+        },
+      });
+      const payClause = createClause({
+        id: "pay-delivery",
+        clause_type: "payment",
+        facts: {
+          days_to_pay: 30,
+          payment_trigger: "delivery",
+          client_may_withhold: "no",
+        },
+      });
+      const findings = evaluateRiskRules([accClause, payClause], basePlaybook);
+      expect(findings.find((f) => f.rule_id === "ACC-1")).toBeUndefined();
     });
 
     it("does not fire when acceptance_decider is mutual_or_objective", () => {
@@ -878,6 +900,29 @@ describe("Deterministic Risk Rules Boundaries", () => {
       const findings = evaluateRiskRules([ipClause, payClause], basePlaybook);
       expect(findings.find((f) => f.rule_id === "COMBO-1")).toBeUndefined();
     });
+
+    it("does not fire when IP-1 severity is low", () => {
+      // transfer_on_delivery preference + on_creation results in IP-1 severity 'low'
+      const playbookTransferOnDelivery: PlaybookPreferences = {
+        ...basePlaybook,
+        ip_ownership: "transfer_on_delivery",
+      };
+      const ipClause = createClause({
+        clause_type: "ip_ownership",
+        facts: { transfer_timing: "on_creation" },
+      });
+      const payClause = createClause({
+        clause_type: "payment",
+        facts: { days_to_pay: 60 },
+      });
+
+      const findings = evaluateRiskRules([ipClause, payClause], playbookTransferOnDelivery);
+      const ip1 = findings.find((f) => f.rule_id === "IP-1");
+      expect(ip1).toBeDefined();
+      expect(ip1?.severity).toBe("low");
+      expect(findings.find((f) => f.rule_id === "PAY-1")).toBeDefined();
+      expect(findings.find((f) => f.rule_id === "COMBO-1")).toBeUndefined();
+    });
   });
 
   describe("COMBO-2: Walk-away exposure combined risk", () => {
@@ -908,12 +953,93 @@ describe("Deterministic Risk Rules Boundaries", () => {
       expect(combo2?.priority).toBe(60);
       expect(combo2?.lawyer_review).toBe(true);
       expect(combo2?.lawyer_review_reasons).toContain("combined_risk");
-      expect(combo2?.params.source_rules).toContain("IP-1");
-      expect(combo2?.params.source_rules).toContain("TERM-2");
+      expect(combo2?.params.source_rules).toEqual(["IP-1", "TERM-2"]);
       expect(combo2?.params.notice_days).toBe(0);
       expect(combo2?.params.payment_for_work_done).toBe("none");
       expect(combo2?.evidence).toHaveLength(2);
       expect(combo2?.clause_ids).toEqual(["combo2-ip-1", "combo2-term-1"]);
+    });
+
+    it("fires on on_creation + TERM-2 with source_rules exactly ['IP-1', 'TERM-2']", () => {
+      const ipClause = createClause({
+        id: "ip-create-1",
+        clause_type: "ip_ownership",
+        facts: { transfer_timing: "on_creation" },
+      });
+      const termClause = createClause({
+        id: "term-2-clause",
+        clause_type: "termination",
+        facts: {
+          client_convenience_termination: "yes",
+          notice_days: 15,
+          payment_for_work_done: "none",
+        },
+      });
+
+      const findings = evaluateRiskRules([ipClause, termClause], basePlaybook);
+      const combo2 = findings.find((f) => f.rule_id === "COMBO-2");
+      expect(combo2).toBeDefined();
+      expect(combo2?.severity).toBe("high");
+      expect(combo2?.params.source_rules).toEqual(["IP-1", "TERM-2"]);
+      expect(combo2?.clause_ids).toEqual(["ip-create-1", "term-2-clause"]);
+    });
+
+    it("does not fire when IP transfer is only on_full_payment even if IP-1 fires under license_only", () => {
+      const ipClause = createClause({
+        clause_type: "ip_ownership",
+        facts: { transfer_timing: "on_full_payment", conditional_on_payment: "yes" },
+      });
+      const termClause = createClause({
+        clause_type: "termination",
+        facts: {
+          client_convenience_termination: "yes",
+          notice_days: 0,
+          payment_for_work_done: "none",
+        },
+      });
+
+      const playbookLicenseOnly: PlaybookPreferences = {
+        ...basePlaybook,
+        ip_ownership: "license_only",
+      };
+
+      const findings = evaluateRiskRules([ipClause, termClause], playbookLicenseOnly);
+      expect(findings.find((f) => f.rule_id === "IP-1")).toBeDefined();
+      expect(findings.find((f) => f.rule_id === "TERM-2")).toBeDefined();
+      expect(findings.find((f) => f.rule_id === "COMBO-2")).toBeUndefined();
+    });
+
+    it("renders without '0' and omits notice phrase when notice_days is unknown (null)", () => {
+      const ipClause = createClause({
+        id: "ip-create-2",
+        clause_type: "ip_ownership",
+        facts: { transfer_timing: "on_creation" },
+      });
+      const termClause = createClause({
+        id: "term-no-notice",
+        clause_type: "termination",
+        facts: {
+          client_convenience_termination: "yes",
+          // notice_days unspecified
+          payment_for_work_done: "none",
+        },
+      });
+
+      const findings = evaluateRiskRules([ipClause, termClause], basePlaybook);
+      const combo2 = findings.find((f) => f.rule_id === "COMBO-2");
+      expect(combo2).toBeDefined();
+      expect(combo2?.params.notice_days).toBeNull();
+
+      const formattedEn = formatFindingText(combo2!, "en");
+      expect(formattedEn.vsLine).not.toContain("0");
+      expect(formattedEn.vsLine).not.toContain("days notice");
+      expect(formattedEn.vsLine).toContain("Combined risk (IP-1, TERM-2):");
+
+      const formattedBn = formatFindingText(combo2!, "bn");
+      expect(formattedBn.vsLine).not.toContain("0");
+      expect(formattedBn.vsLine).not.toContain("০");
+      expect(formattedBn.vsLine).not.toContain("দিনের নোটিশে");
+      expect(formattedBn.vsLine).toContain("যৌথ ঝুঁকি (IP-1, TERM-2):");
     });
 
     it("fires high when payment_for_work_done is only_invoiced", () => {

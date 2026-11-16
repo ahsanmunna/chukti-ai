@@ -100,6 +100,12 @@ export function formatFindingText(
       contractTerms = locale === "bn" ? "অননুমোদিত শর্ত" : "delayed payment conditions";
     }
     localizedParams.contract_terms = contractTerms;
+  } else if (finding.rule_id === "COMBO-2") {
+    const noticeDays = finding.params.notice_days;
+    const rT = ruleTemplates as unknown as Record<string, string>;
+    if (noticeDays === null || noticeDays === undefined) {
+      vsLineTemplate = rT.vsLineNoNotice ?? ruleTemplates.vsLine;
+    }
   }
 
   const title = interpolate(ruleTemplates.title, localizedParams);

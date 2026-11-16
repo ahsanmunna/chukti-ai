@@ -84,7 +84,7 @@
     "analyzeNotImplemented": "Available in the next phase",
     "extractButton": "Extract clauses",
     "extractingButton": "Extracting clauses...",
-    "extractNotice": "Extracting sends the contract text to Google's Gemini API (free tier; Google may use it to improve its products). Do not analyze confidential contracts.",
+    "extractNotice": "Analyzing sends the contract text to Google's Gemini API (free tier; Google may use it to improve its products). Do not analyze confidential contracts.",
     "riskAnalysisRow": "Risk analysis",
     "riskAnalysisNote": "Available in the next phase",
     "analyzeRisksButton": "Analyze risks",
@@ -370,7 +370,6 @@
         },
         "payment_tied_to_acceptance": {
           "no": "no",
-          "payment_clause_present": "payment clause present",
           "unspecified": "unspecified",
           "yes": "yes"
         },
@@ -532,6 +531,7 @@
       "COMBO-2": {
         "title": "Walk-away exposure with unpaid IP transfer",
         "vsLine": "Combined risk ({source_rules}): IP transfers to client while client can terminate with {notice_days} days notice and {payment_for_work_done}.",
+        "vsLineNoNotice": "Combined risk ({source_rules}): IP transfers to client while client can terminate and {payment_for_work_done}.",
         "reason": "The client acquires IP ownership while retaining the right to terminate for convenience without paying for work done, allowing them to walk away with your work uncompensated.",
         "recommendation": "Ensure IP remains with contractor until full payment and contract requires full pro-rata compensation for all work completed prior to termination.",
         "uncertainty": "Combined risk evaluated across IP and termination clauses.",

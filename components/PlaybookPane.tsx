@@ -604,7 +604,7 @@ export function PlaybookPane({
                       onClick={onRetryAnalysis ?? onAnalyzeContract}
                       className="inline-flex items-center rounded border border-border-danger bg-surface-panel px-2.5 py-1 text-xs font-semibold text-text-danger hover:bg-surface-subtle"
                     >
-                      {locale === "bn" ? "আবার চেষ্টা করুন" : "Retry"}
+                      {messages.retryButton}
                     </button>
                   </div>
                 ) : null}
