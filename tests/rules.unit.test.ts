@@ -491,6 +491,95 @@ describe("Deterministic Risk Rules Boundaries", () => {
       });
       expect(findings.find((f) => f.rule_id === "TERM-1")).toBeUndefined();
     });
+
+    it("fires high with notice_days 0 for exact facts 9.1-9.6 without including for-cause clause", () => {
+      const clauses: ClauseWithFacts[] = [
+        createClause({
+          id: "clause-9.1",
+          clause_type: "termination",
+          facts: { client_convenience_termination: "unspecified", notice_days: null },
+        }),
+        createClause({
+          id: "clause-9.2",
+          clause_type: "termination",
+          facts: { client_convenience_termination: "yes", notice_days: 0 },
+        }),
+        createClause({
+          id: "clause-9.3",
+          clause_type: "termination",
+          facts: { client_convenience_termination: "no", notice_days: 0 },
+        }),
+        createClause({
+          id: "clause-9.4",
+          clause_type: "termination",
+          facts: { client_convenience_termination: "unspecified", notice_days: null },
+        }),
+        createClause({
+          id: "clause-9.5",
+          clause_type: "termination",
+          facts: { client_convenience_termination: "unspecified", notice_days: null },
+        }),
+        createClause({
+          id: "clause-9.6",
+          clause_type: "termination",
+          facts: { client_convenience_termination: "unspecified", notice_days: null },
+        }),
+      ];
+      const findings = evaluateRiskRules(clauses, {
+        ...basePlaybook,
+        termination: { ...basePlaybook.termination, min_notice_days: 30 },
+      });
+      const term1 = findings.find((f) => f.rule_id === "TERM-1");
+      expect(term1).toBeDefined();
+      expect(term1?.severity).toBe("high");
+      expect(term1?.params.notice_days).toBe(0);
+      expect(term1?.clause_ids).toEqual(["clause-9.2"]);
+    });
+
+    it("does not fire when one clause is yes with notice 30 and another clause is no with notice 0", () => {
+      const clauses: ClauseWithFacts[] = [
+        createClause({
+          id: "c-conv",
+          clause_type: "termination",
+          facts: { client_convenience_termination: "yes", notice_days: 30 },
+        }),
+        createClause({
+          id: "c-cause",
+          clause_type: "termination",
+          facts: { client_convenience_termination: "no", notice_days: 0 },
+        }),
+      ];
+      const findings = evaluateRiskRules(clauses, {
+        ...basePlaybook,
+        termination: { ...basePlaybook.termination, min_notice_days: 30 },
+      });
+      const term1 = findings.find((f) => f.rule_id === "TERM-1");
+      expect(term1).toBeUndefined();
+    });
+
+    it("fires using the minimum when two yes clauses have notice 0 and 14", () => {
+      const clauses: ClauseWithFacts[] = [
+        createClause({
+          id: "c-conv-1",
+          clause_type: "termination",
+          facts: { client_convenience_termination: "yes", notice_days: 0 },
+        }),
+        createClause({
+          id: "c-conv-2",
+          clause_type: "termination",
+          facts: { client_convenience_termination: "yes", notice_days: 14 },
+        }),
+      ];
+      const findings = evaluateRiskRules(clauses, {
+        ...basePlaybook,
+        termination: { ...basePlaybook.termination, min_notice_days: 30 },
+      });
+      const term1 = findings.find((f) => f.rule_id === "TERM-1");
+      expect(term1).toBeDefined();
+      expect(term1?.severity).toBe("high");
+      expect(term1?.params.notice_days).toBe(0);
+      expect(term1?.clause_ids).toEqual(["c-conv-1", "c-conv-2"]);
+    });
   });
 
   describe("TERM-2: Payment for work completed upon termination", () => {
