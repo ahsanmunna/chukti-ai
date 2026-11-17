@@ -86,10 +86,10 @@ export class GeminiLlmClient implements LlmClient {
       throw new LlmError("llm_not_configured", "Gemini API key is not configured.", 503);
     }
 
-    const overallStart = Date.now();
+    const primaryStart = Date.now();
 
     try {
-      return await this.executeModelAttemptSet<T>(this.model, options, overallStart);
+      return await this.executeModelAttemptSet<T>(this.model, options, primaryStart);
     } catch (primaryErr) {
       const shouldFallback =
         Boolean(this.fallbackModel) &&
@@ -101,7 +101,9 @@ export class GeminiLlmClient implements LlmClient {
         throw primaryErr;
       }
 
-      return await this.executeModelAttemptSet<T>(this.fallbackModel!, options, overallStart);
+      // Separate deadline budget per model so fallback gets its own window
+      const fallbackStart = Date.now();
+      return await this.executeModelAttemptSet<T>(this.fallbackModel!, options, fallbackStart);
     }
   }
 

@@ -59,28 +59,71 @@ export async function GET(
     return orderA - orderB;
   });
 
-  // Fetch latest succeeded facts run for clause counts
-  const { data: latestFactsRun } = await supabase
-    .from("facts_runs")
-    .select("clause_count, verified_count, no_facts_count, failed_count")
+  // Compute facts summary from canonical clause facts status if available
+  const { data: latestExtractionRun } = await supabase
+    .from("extraction_runs")
+    .select("id")
     .eq("document_id", id)
     .eq("status", "succeeded")
     .order("started_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
+  let factsSummary: {
+    total_clauses: number;
+    verified_clauses: number;
+    extracted_clauses: number;
+    no_facts_clauses: number;
+    failed_clauses: number;
+  } | null = null;
+
+  if (latestExtractionRun) {
+    const { data: clauses } = await supabase
+      .from("clauses")
+      .select("facts_status")
+      .eq("run_id", latestExtractionRun.id);
+
+    if (clauses && clauses.length > 0 && clauses.some((c) => c.facts_status !== null)) {
+      const verifiedCount = clauses.filter((c) => c.facts_status === "extracted").length;
+      const noFactsCount = clauses.filter((c) => c.facts_status === "none").length;
+      const failedCount = clauses.filter((c) => c.facts_status === "failed").length;
+      factsSummary = {
+        total_clauses: clauses.length,
+        verified_clauses: verifiedCount,
+        extracted_clauses: verifiedCount,
+        no_facts_clauses: noFactsCount,
+        failed_clauses: failedCount,
+      };
+    }
+  }
+
+  // Fallback to latest succeeded facts run if clauses do not have facts_status populated
+  if (!factsSummary) {
+    const { data: latestFactsRun } = await supabase
+      .from("facts_runs")
+      .select("clause_count, verified_count, no_facts_count, failed_count")
+      .eq("document_id", id)
+      .eq("status", "succeeded")
+      .order("started_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestFactsRun) {
+      factsSummary = {
+        total_clauses: latestFactsRun.clause_count,
+        verified_clauses: latestFactsRun.verified_count,
+        extracted_clauses: latestFactsRun.verified_count,
+        no_facts_clauses: latestFactsRun.no_facts_count ?? 0,
+        failed_clauses: latestFactsRun.failed_count ?? 0,
+      };
+    }
+  }
+
   return NextResponse.json(
     {
       findings,
-      facts_summary: latestFactsRun
-        ? {
-            total_clauses: latestFactsRun.clause_count,
-            verified_clauses: latestFactsRun.verified_count,
-            extracted_clauses: latestFactsRun.verified_count,
-            no_facts_clauses: latestFactsRun.no_facts_count ?? 0,
-            failed_clauses: latestFactsRun.failed_count ?? 0,
-          }
-        : null,
+      facts_summary: factsSummary,
     },
     { status: 200 },
   );

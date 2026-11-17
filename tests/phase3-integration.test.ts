@@ -112,9 +112,34 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
   let fixtures: GeneratedFixturePaths;
   const createdDocs: Array<{ id: string; storagePath: string }> = [];
   const fakeLlm = new FakeLlmClient();
+  let originalExtractMaxPerHour: string | undefined;
+
+  async function cleanupCreatedDocs() {
+    if (createdDocs.length === 0) {
+      return;
+    }
+    try {
+      const admin = createSupabaseAdminClient();
+      const ids = createdDocs.map((d) => d.id);
+      const paths = createdDocs.map((d) => d.storagePath).filter(Boolean);
+      if (paths.length > 0) {
+        await admin.storage.from(CONTRACTS_STORAGE_BUCKET).remove(paths);
+      }
+      await admin.from("findings").delete().in("document_id", ids);
+      await admin.from("clauses").delete().in("document_id", ids);
+      await admin.from("facts_runs").delete().in("document_id", ids);
+      await admin.from("extraction_runs").delete().in("document_id", ids);
+      await admin.from("documents").delete().in("id", ids);
+      createdDocs.length = 0;
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
 
   beforeAll(async () => {
     loadLocalEnvIfPresent();
+    originalExtractMaxPerHour = process.env.EXTRACT_MAX_PER_HOUR;
+    process.env.EXTRACT_MAX_PER_HOUR = "1000";
     fixtures = await generateSyntheticFixtures();
     setLlmClientForTesting(fakeLlm);
   });
@@ -123,7 +148,7 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
     setLlmClientForTesting(fakeLlm);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     fakeLlm.callCount = 0;
     fakeLlm.factsCallCount = 0;
     fakeLlm.delayMs = 0;
@@ -132,25 +157,18 @@ describe("Phase 3 API Integration (Facts Extraction + Rule Engine + Findings + R
     fakeLlm.cannedFactsResponses = [];
     fakeLlm.failureError = null;
     fakeLlm.throwOnFactsCallIndex = null;
+
+    await cleanupCreatedDocs();
   });
 
   afterAll(async () => {
     setLlmClientForTesting(null);
-    if (createdDocs.length === 0) {
-      return;
+    if (originalExtractMaxPerHour !== undefined) {
+      process.env.EXTRACT_MAX_PER_HOUR = originalExtractMaxPerHour;
+    } else {
+      delete process.env.EXTRACT_MAX_PER_HOUR;
     }
-    try {
-      const admin = createSupabaseAdminClient();
-      const paths = createdDocs.map((d) => d.storagePath).filter(Boolean);
-      if (paths.length > 0) {
-        await admin.storage.from(CONTRACTS_STORAGE_BUCKET).remove(paths);
-      }
-      for (const doc of createdDocs) {
-        await admin.from("documents").delete().eq("id", doc.id);
-      }
-    } catch {
-      // Ignore cleanup errors
-    }
+    await cleanupCreatedDocs();
   });
 
   async function uploadTestDoc(customName?: string): Promise<{ id: string; sha256: string }> {

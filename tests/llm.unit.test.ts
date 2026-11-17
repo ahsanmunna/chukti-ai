@@ -855,5 +855,67 @@ describe("B. LLM wrapper: GeminiLlmClient with mocked fetch", () => {
       expect(primaryCalls).toBe(1);
       expect(fallbackCalls).toBe(1);
     });
+
+    it("gives fallback model its own fresh deadline budget even if primary consumed elapsed time", async () => {
+      let primaryCalls = 0;
+      let fallbackCalls = 0;
+
+      const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("primary-model")) {
+          primaryCalls++;
+          // Simulate latency in primary model
+          await new Promise((r) => setTimeout(r, 60));
+          return {
+            ok: false,
+            status: 503,
+            headers: new Headers(),
+            json: async () => ({ error: { message: "503", status: "UNAVAILABLE" } }),
+          };
+        }
+        if (url.includes("fallback-model")) {
+          fallbackCalls++;
+          // Fallback takes 60ms; with a shared 100ms deadline from overall start,
+          // 60ms + 60ms = 120ms > 100ms would fail. With separate budget, fallback elapsed is 60ms <= 100ms.
+          await new Promise((r) => setTimeout(r, 60));
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers(),
+            json: async () => ({
+              candidates: [
+                {
+                  content: {
+                    parts: [{ text: JSON.stringify({ result: "fallback_with_own_budget" }) }],
+                  },
+                  finishReason: "STOP",
+                },
+              ],
+            }),
+          };
+        }
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+      const client = new GeminiLlmClient({
+        apiKey: "test-api-key",
+        model: "primary-model",
+        fallbackModel: "fallback-model",
+        fetchFn: mockFetch as unknown as typeof fetch,
+        initialBackoffMs: 100,
+        overallDeadlineMs: 100, // Budget is 100ms per model
+        maxRetries: 0,
+      });
+
+      const res = await client.generateJson<{ result: string }>({
+        system: "sys",
+        user: "usr",
+        jsonSchema: dummySchema,
+      });
+
+      expect(primaryCalls).toBe(1);
+      expect(fallbackCalls).toBe(1);
+      expect(res.json).toEqual({ result: "fallback_with_own_budget" });
+      expect(res.model).toBe("fallback-model");
+    });
   });
 });

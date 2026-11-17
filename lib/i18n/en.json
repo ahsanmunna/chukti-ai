@@ -80,7 +80,7 @@
     "analyzeContractButton": "Analyze contract",
     "stepReadingClauses": "Step 1 of 2: reading clauses",
     "stepCheckingRisks": "Step 2 of 2: checking risks",
-    "stepTimeEstimate": "This can take about a minute",
+    "stepTimeEstimate": "This can take 1 to 3 minutes",
     "analyzeNotImplemented": "Available in the next phase",
     "extractButton": "Extract clauses",
     "extractingButton": "Extracting clauses...",
@@ -222,6 +222,14 @@
     },
     "whyThisMatters": "Why this matters",
     "whatToAskFor": "What to ask for",
+    "suggestedWordingTitle": "Suggested wording",
+    "copyButton": "Copy",
+    "copiedButton": "Copied",
+    "starterDraftDisclaimer": "Starter draft, not lawyer-reviewed. Have a lawyer check it before sending.",
+    "lawyerReviewNote": "A lawyer should review this one.",
+    "draftMessageTitle": "Draft message to the client",
+    "draftMessageDescription": "Ready-to-send draft message summarizing requested contract changes.",
+    "draftMessageDisclaimer": "Replace the bracketed names before sending. Starter draft, not lawyer-reviewed.",
     "evidenceTitle": "Evidence",
     "moreRelatedPassages": "{n} more related passages",
     "showFewerPassages": "Show fewer passages",
@@ -290,7 +298,7 @@
       },
       "values": {
         "acceptance_decider": {
-          "client_sole": "client sole discretion",
+          "client_sole": "the client alone decides",
           "mutual_or_objective": "mutual agreement or objective criteria",
           "not_specified": "not specified",
           "unspecified": "unspecified"
@@ -518,9 +526,9 @@
         "financialConsequence": null
       },
       "ACC-1": {
-        "title": "Client sole discretion acceptance tied to payment",
-        "vsLine": "Your rule: objective acceptance criteria. Contract: {acceptance_decider}.",
-        "reason": "Client has sole discretion over whether work is accepted while payment is tied to that acceptance.",
+        "title": "Client alone decides acceptance, and payment depends on it",
+        "vsLine": "Standard check: objective acceptance criteria. Contract: {acceptance_decider}.",
+        "reason": "The client alone decides whether work is accepted while payment is tied to that acceptance.",
         "recommendation": "Require objective acceptance criteria or deemed acceptance within a fixed number of days.",
         "uncertainty": null,
         "financialConsequence": null
@@ -537,6 +545,7 @@
         "title": "Walk-away exposure with unpaid IP transfer",
         "vsLine": "Combined risk ({source_rules}): the client can terminate for convenience with {notice_days} days notice and {payment_for_work_done}.",
         "vsLineNoNotice": "Combined risk ({source_rules}): the client can terminate for convenience and {payment_for_work_done}.",
+        "vsLineImmediate": "Combined risk ({source_rules}): the client can terminate for convenience with immediate effect and {payment_for_work_done}.",
         "reason": "The client acquires IP ownership while retaining the right to terminate for convenience without paying for work done, allowing them to walk away with your work uncompensated.",
         "recommendation": "Ensure IP remains with contractor until full payment and contract requires full pro-rata compensation for all work completed prior to termination.",
         "uncertainty": "Combined risk evaluated across IP and termination clauses.",

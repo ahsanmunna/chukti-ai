@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { Locale, Messages } from "@/lib/i18n";
+import { DEFAULT_PLAYBOOK, type PlaybookPreferences } from "@/lib/playbook/schema";
+import { buildClientDraftMessage, getSuggestedWording, getSuggestedWordingNote } from "@/lib/risk/drafts";
 import { formatFindingText } from "@/lib/risk/templates";
 import type { Finding, RuleId } from "@/lib/risk/types";
 import type { FindingEvidenceItem, FindingRow, RiskSeverity } from "@/lib/supabase/types";
@@ -33,6 +35,69 @@ interface FindingsPaneProps {
   isAnalyzing: boolean;
   factsSummary?: FactsSummary | null;
   initialExpandedAll?: boolean;
+  playbook?: PlaybookPreferences;
+}
+
+function CopyButton({
+  textToCopy,
+  label,
+  copiedLabel,
+}: {
+  textToCopy: string;
+  label: string;
+  copiedLabel: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(textToCopy);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        return;
+      }
+    } catch {
+      // Fallback
+    }
+
+    try {
+      if (typeof document !== "undefined") {
+        const textarea = document.createElement("textarea");
+        textarea.value = textToCopy;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
+      // Ignore
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-panel px-2 py-0.5 text-[11px] font-medium text-text-secondary hover:bg-surface-subtle hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+      title={label}
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 16 16"
+        fill="currentColor"
+        className="h-3 w-3 shrink-0"
+      >
+        <path d="M4 2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1H2z" />
+      </svg>
+      <span>{copied ? copiedLabel : label}</span>
+    </button>
+  );
 }
 
 function SeverityIcon({ severity }: { severity: RiskSeverity }) {
@@ -85,7 +150,9 @@ export function FindingsPane({
   isAnalyzing,
   factsSummary,
   initialExpandedAll = false,
+  playbook = DEFAULT_PLAYBOOK,
 }: FindingsPaneProps) {
+  const [isClientMessageExpanded, setIsClientMessageExpanded] = useState(false);
   const [expandedWhyIds, setExpandedWhyIds] = useState<Set<string>>(
     () => (initialExpandedAll ? new Set(findings.map((f) => f.id)) : new Set()),
   );
@@ -142,6 +209,21 @@ export function FindingsPane({
     medium: findings.filter((f) => f.severity === "medium").length,
     low: findings.filter((f) => f.severity === "low").length,
   };
+
+  const domainFindings: Finding[] = findings.map((f) => ({
+    rule_id: f.rule_id as RuleId,
+    rule_version: f.rules_version,
+    source: "builtin" as const,
+    severity: f.severity,
+    priority: f.priority,
+    clause_ids: f.clause_ids,
+    evidence: (f.evidence ?? []) as FindingEvidenceItem[],
+    params: (f.params ?? {}) as Record<string, unknown>,
+    lawyer_review: f.lawyer_review,
+    lawyer_review_reasons: Array.isArray(f.lawyer_review_reasons)
+      ? (f.lawyer_review_reasons as string[])
+      : [],
+  }));
 
   return (
     <section
@@ -606,9 +688,37 @@ export function FindingsPane({
                         </span>
                       </button>
                       {isAskExpanded ? (
-                        <p className="mt-1 text-xs leading-relaxed text-text-secondary">
-                          {text.recommendation}
-                        </p>
+                        <div className="mt-1 space-y-2.5">
+                          <p className="text-xs leading-relaxed text-text-secondary">
+                            {text.recommendation}
+                          </p>
+
+                          {/* Suggested wording */}
+                          <div className="rounded border border-border-default bg-surface-subtle p-2.5 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-semibold text-text-primary">
+                                {messages.suggestedWordingTitle}
+                              </span>
+                              <CopyButton
+                                textToCopy={getSuggestedWording(findingObj, playbook)}
+                                label={messages.copyButton}
+                                copiedLabel={messages.copiedButton}
+                              />
+                            </div>
+                            {getSuggestedWordingNote(findingObj, playbook) ? (
+                              <p className="text-[11px] text-text-muted">
+                                {getSuggestedWordingNote(findingObj, playbook)}
+                              </p>
+                            ) : null}
+                            <div className="font-serif-contract text-xs text-text-primary bg-surface-canvas p-2.5 rounded border border-border-subtle whitespace-pre-wrap select-all">
+                              {getSuggestedWording(findingObj, playbook)}
+                            </div>
+                            <p className="text-[11px] text-text-muted">
+                              {messages.starterDraftDisclaimer}
+                              {finding.lawyer_review ? ` ${messages.lawyerReviewNote}` : ""}
+                            </p>
+                          </div>
+                        </div>
                       ) : null}
                     </div>
 
@@ -689,6 +799,43 @@ export function FindingsPane({
                 </div>
               );
             })}
+          </div>
+
+          {/* Draft message to the client (collapsible panel) */}
+          <div className="rounded-md border border-border-default bg-surface-canvas">
+            <button
+              type="button"
+              onClick={() => setIsClientMessageExpanded(!isClientMessageExpanded)}
+              className="flex w-full items-center justify-between p-3.5 text-left text-xs font-semibold text-text-primary hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+            >
+              <span>{messages.draftMessageTitle}</span>
+              <span className="text-xs text-text-muted">
+                {isClientMessageExpanded ? "−" : "+"}
+              </span>
+            </button>
+            {isClientMessageExpanded ? (
+              <div className="border-t border-border-subtle p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-text-secondary">
+                    {messages.draftMessageDescription}
+                  </p>
+                  <CopyButton
+                    textToCopy={buildClientDraftMessage(domainFindings, playbook)}
+                    label={messages.copyButton}
+                    copiedLabel={messages.copiedButton}
+                  />
+                </div>
+                <textarea
+                  readOnly
+                  rows={12}
+                  value={buildClientDraftMessage(domainFindings, playbook)}
+                  className="w-full rounded border border-border-default bg-surface-subtle p-2.5 font-mono text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-primary resize-y"
+                />
+                <p className="text-[11px] text-text-muted">
+                  {messages.draftMessageDisclaimer}
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

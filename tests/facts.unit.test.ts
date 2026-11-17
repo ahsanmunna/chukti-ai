@@ -6,6 +6,7 @@ import {
 } from "@/lib/facts/prompt";
 import {
   CLIENT_MAY_WITHHOLD,
+  type GoverningLawFacts,
   type TerminationFacts,
   factsResponseSchema,
   filterFactsForClauseType,
@@ -236,41 +237,41 @@ describe("Facts Schema & Filtering (filterFactsForClauseType & getDefaultFactsFo
     const engFacts = filterFactsForClauseType("governing_law", {
       governing_law_name: "England and Wales",
       foreign_to_bangladesh: "unspecified",
-    });
+    }) as GoverningLawFacts;
     expect(engFacts.foreign_to_bangladesh).toBe("yes");
 
     // Even if model returned "no", foreign law overrides model value
     const engOverride = filterFactsForClauseType("governing_law", {
       governing_law_name: "England and Wales",
       foreign_to_bangladesh: "no",
-    });
+    }) as GoverningLawFacts;
     expect(engOverride.foreign_to_bangladesh).toBe("yes");
 
     // "Laws of Bangladesh" -> no
     const bdFacts = filterFactsForClauseType("governing_law", {
       governing_law_name: "Laws of Bangladesh",
       foreign_to_bangladesh: "unspecified",
-    });
+    }) as GoverningLawFacts;
     expect(bdFacts.foreign_to_bangladesh).toBe("no");
 
     // Even if model returned "yes", Bangladesh law overrides model value to "no"
     const bdOverride = filterFactsForClauseType("governing_law", {
       governing_law_name: "Laws of Bangladesh",
       foreign_to_bangladesh: "yes",
-    });
+    }) as GoverningLawFacts;
     expect(bdOverride.foreign_to_bangladesh).toBe("no");
 
     // null -> unchanged (keeps model value)
     const nullFactsUnspecified = filterFactsForClauseType("governing_law", {
       governing_law_name: null,
       foreign_to_bangladesh: "unspecified",
-    });
+    }) as GoverningLawFacts;
     expect(nullFactsUnspecified.foreign_to_bangladesh).toBe("unspecified");
 
     const nullFactsYes = filterFactsForClauseType("governing_law", {
       governing_law_name: null,
       foreign_to_bangladesh: "yes",
-    });
+    }) as GoverningLawFacts;
     expect(nullFactsYes.foreign_to_bangladesh).toBe("yes");
   });
 });
@@ -301,6 +302,7 @@ describe("Lexical Backstops for Termination Clauses (applyLexicalBackstop)", () 
     const res = applyLexicalBackstop(clause, current);
     expect(res.applied).toBe(true);
     expect((res.computed.facts as TerminationFacts).client_convenience_termination).toBe("yes");
+    expect((res.computed.facts as TerminationFacts).notice_days).toBe(0);
     expect(res.computed.facts_status).toBe("extracted");
     expect(res.computed.facts_verified).toBe(true);
     expect(res.computed.facts_evidence).toBe(clause92Text);
@@ -312,6 +314,155 @@ describe("Lexical Backstops for Termination Clauses (applyLexicalBackstop)", () 
       res.computed.facts_evidence,
     );
     expect(quoteVerification.valid).toBe(true);
+  });
+
+  it("'Client acknowledges that Contractor may terminate at any time' does NOT trigger backstop", () => {
+    const text = "Client acknowledges that Contractor may terminate at any time.";
+    const clause = {
+      id: "term-ack",
+      clause_type: "termination" as const,
+      verbatim_text: text,
+      char_start: 0,
+    };
+    const current = {
+      facts: {
+        client_convenience_termination: "unspecified" as const,
+        notice_days: null,
+        payment_for_work_done: "unspecified" as const,
+        handover_required: "unspecified" as const,
+      },
+      facts_evidence: null,
+      facts_verified: false,
+      facts_status: "none" as const,
+    };
+
+    const res = applyLexicalBackstop(clause, current);
+    expect(res.applied).toBe(false);
+    expect((res.computed.facts as TerminationFacts).client_convenience_termination).toBe("unspecified");
+  });
+
+  it("'Client may terminate for cause at any time' does NOT trigger backstop", () => {
+    const text = "Client may terminate for cause at any time upon material breach.";
+    const clause = {
+      id: "term-cause",
+      clause_type: "termination" as const,
+      verbatim_text: text,
+      char_start: 0,
+    };
+    const current = {
+      facts: {
+        client_convenience_termination: "unspecified" as const,
+        notice_days: null,
+        payment_for_work_done: "unspecified" as const,
+        handover_required: "unspecified" as const,
+      },
+      facts_evidence: null,
+      facts_verified: false,
+      facts_status: "none" as const,
+    };
+
+    const res = applyLexicalBackstop(clause, current);
+    expect(res.applied).toBe(false);
+    expect((res.computed.facts as TerminationFacts).client_convenience_termination).toBe("unspecified");
+  });
+
+  it("notice backstop: when model returns client_convenience_termination = yes and notice_days = null, sets notice_days = 0 if sentence says 'with immediate effect'", () => {
+    const clause = {
+      id: "term-immediate-1",
+      clause_type: "termination" as const,
+      verbatim_text: clause92Text,
+      char_start: 0,
+    };
+    const current = {
+      facts: {
+        client_convenience_termination: "yes" as const,
+        notice_days: null,
+        payment_for_work_done: "unspecified" as const,
+        handover_required: "unspecified" as const,
+      },
+      facts_evidence: "Client may terminate this Agreement for convenience",
+      facts_verified: true,
+      facts_status: "extracted" as const,
+    };
+
+    const res = applyLexicalBackstop(clause, current);
+    expect(res.applied).toBe(true);
+    expect((res.computed.facts as TerminationFacts).client_convenience_termination).toBe("yes");
+    expect((res.computed.facts as TerminationFacts).notice_days).toBe(0);
+    expect(res.computed.facts_evidence).toBe(clause92Text);
+  });
+
+  it("notice backstop: when model returns client_convenience_termination = yes and notice_days = null, sets notice_days = 0 if sentence says 'immediately'", () => {
+    const text = "Client may terminate this Agreement without cause immediately upon written notice.";
+    const clause = {
+      id: "term-immediate-2",
+      clause_type: "termination" as const,
+      verbatim_text: text,
+      char_start: 0,
+    };
+    const current = {
+      facts: {
+        client_convenience_termination: "yes" as const,
+        notice_days: null,
+        payment_for_work_done: "unspecified" as const,
+        handover_required: "unspecified" as const,
+      },
+      facts_evidence: "Client may terminate this Agreement without cause",
+      facts_verified: true,
+      facts_status: "extracted" as const,
+    };
+
+    const res = applyLexicalBackstop(clause, current);
+    expect(res.applied).toBe(true);
+    expect((res.computed.facts as TerminationFacts).notice_days).toBe(0);
+  });
+
+  it("notice backstop: never overrides a non-null model value for notice_days", () => {
+    const clause = {
+      id: "term-no-override-notice",
+      clause_type: "termination" as const,
+      verbatim_text: clause92Text,
+      char_start: 0,
+    };
+    const current = {
+      facts: {
+        client_convenience_termination: "yes" as const,
+        notice_days: 30, // Model explicitly returned 30
+        payment_for_work_done: "unspecified" as const,
+        handover_required: "unspecified" as const,
+      },
+      facts_evidence: "immediate effect",
+      facts_verified: true,
+      facts_status: "extracted" as const,
+    };
+
+    const res = applyLexicalBackstop(clause, current);
+    expect(res.applied).toBe(false);
+    expect((res.computed.facts as TerminationFacts).notice_days).toBe(30);
+  });
+
+  it("notice backstop: never sets notice_days when client_convenience_termination is 'no'", () => {
+    const clause = {
+      id: "term-no-notice-when-no",
+      clause_type: "termination" as const,
+      verbatim_text: clause92Text,
+      char_start: 0,
+    };
+    const current = {
+      facts: {
+        client_convenience_termination: "no" as const,
+        notice_days: null,
+        payment_for_work_done: "unspecified" as const,
+        handover_required: "unspecified" as const,
+      },
+      facts_evidence: null,
+      facts_verified: false,
+      facts_status: "none" as const,
+    };
+
+    const res = applyLexicalBackstop(clause, current);
+    expect(res.applied).toBe(false);
+    expect((res.computed.facts as TerminationFacts).notice_days).toBeNull();
   });
 
   it("'The Contractor may terminate for convenience' does NOT trigger backstop", () => {
