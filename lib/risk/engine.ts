@@ -596,25 +596,38 @@ export function evaluateRiskRules(
     const minNotice = playbook.termination.min_notice_days;
 
     if (termAgg.clauses.length > 0) {
-      const convTerm = termAgg.client_convenience_termination.state === "single"
-        ? termAgg.client_convenience_termination.value
-        : null;
+      const convenienceClauses = termAgg.clauses.filter(
+        (c) =>
+          (c.facts as Record<string, unknown> | null)?.client_convenience_termination === "yes",
+      );
 
-      if (convTerm === "yes") {
-        if (termAgg.notice_days.state === "single") {
-          const days = termAgg.notice_days.value;
+      if (convenienceClauses.length > 0) {
+        const noticeClauses: ClauseWithFacts[] = [];
+        const noticeValues: number[] = [];
+
+        for (const c of convenienceClauses) {
+          const n = (c.facts as Record<string, unknown> | null)?.notice_days;
+          if (typeof n === "number") {
+            noticeValues.push(n);
+            noticeClauses.push(c);
+          }
+        }
+
+        const distinctNoticeValues = Array.from(new Set(noticeValues));
+
+        if (distinctNoticeValues.length > 0) {
+          const isConflicting = distinctNoticeValues.length > 1;
+          const days = Math.min(...distinctNoticeValues);
+
           if (days < minNotice) {
             const severity = days === 0 ? "high" : "medium";
             const supportingClauses = Array.from(
-              new Set([
-                ...termAgg.client_convenience_termination.clauses,
-                ...termAgg.notice_days.clauses,
-              ]),
+              new Set([...convenienceClauses, ...noticeClauses]),
             );
             const review = evaluateLawyerReview(
               supportingClauses,
               false,
-              false,
+              isConflicting,
               false,
             );
 
@@ -630,40 +643,6 @@ export function evaluateRiskRules(
                 notice_days: days,
                 min_notice_days: minNotice,
                 diff: minNotice - days,
-              },
-              lawyer_review: review.lawyer_review,
-              lawyer_review_reasons: review.lawyer_review_reasons,
-            });
-          }
-        } else if (termAgg.notice_days.state === "conflicting") {
-          const minContractDays = Math.min(...termAgg.notice_days.values);
-          if (minContractDays < minNotice) {
-            const severity = minContractDays === 0 ? "high" : "medium";
-            const supportingClauses = Array.from(
-              new Set([
-                ...termAgg.client_convenience_termination.clauses,
-                ...termAgg.notice_days.clauses,
-              ]),
-            );
-            const review = evaluateLawyerReview(
-              supportingClauses,
-              false,
-              true,
-              false,
-            );
-
-            findings.push({
-              rule_id: "TERM-1",
-              rule_version: RISK_RULES_VERSION,
-              source: "playbook",
-              severity,
-              priority: SEVERITY_PRIORITY_WEIGHTS[severity],
-              clause_ids: supportingClauses.map((c) => c.id),
-              evidence: buildEvidenceForClauses(supportingClauses),
-              params: {
-                notice_days: minContractDays,
-                min_notice_days: minNotice,
-                diff: minNotice - minContractDays,
               },
               lawyer_review: review.lawyer_review,
               lawyer_review_reasons: review.lawyer_review_reasons,
