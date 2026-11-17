@@ -377,7 +377,8 @@ export function buildClientDraftMessage(
   });
 
   if (overflowCount > 0) {
-    items.push(`(plus ${overflowCount} further points we can go through together)`);
+    const pointWord = overflowCount === 1 ? "point" : "points";
+    items.push(`(plus ${overflowCount} further ${pointWord} we can go through together)`);
   }
 
   const lines = [
