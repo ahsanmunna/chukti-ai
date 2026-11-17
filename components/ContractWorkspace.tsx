@@ -9,6 +9,7 @@ import {
   formatPlaybookFieldErrors,
   playbookSchema,
 } from "@/lib/playbook/schema";
+import { isPlaybookStale as checkPlaybookStale } from "@/lib/playbook/stale";
 import {
   DocumentPane,
   type DocumentHighlightRange,
@@ -69,7 +70,18 @@ export function ContractWorkspace() {
   const [documentData, setDocumentData] = useState<DocumentResponsePayload | null>(null);
 
   const [playbook, setPlaybook] = useState<PlaybookPreferences>(() => cloneDefaultPlaybook());
-  const [playbookLoading, setPlaybookLoading] = useState(false);
+  const [playbookLoading, setPlaybookLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      return new URLSearchParams(window.location.search).has("documentId");
+    }
+    return false;
+  });
+  const [playbookLoaded, setPlaybookLoaded] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !new URLSearchParams(window.location.search).has("documentId");
+    }
+    return true;
+  });
   const [playbookLoadError, setPlaybookLoadError] = useState(false);
   const [playbookSaveStatus, setPlaybookSaveStatus] = useState<PlaybookSaveStatus>("idle");
   const [hasServerSaved, setHasServerSaved] = useState(false);
@@ -95,12 +107,13 @@ export function ContractWorkspace() {
   const [highlightRanges, setHighlightRanges] = useState<DocumentHighlightRange[] | null>(null);
 
   const isPlaybookStale = (() => {
+    if (playbookLoading || !playbookLoaded) return false;
     if (findings.length === 0) return false;
     const firstSnapshot = findings[0]?.playbook_snapshot as {
       preferences?: PlaybookPreferences;
     } | null;
     if (!firstSnapshot || !firstSnapshot.preferences) return false;
-    return JSON.stringify(firstSnapshot.preferences) !== JSON.stringify(playbook);
+    return checkPlaybookStale(firstSnapshot.preferences, playbook, playbookLoading || !playbookLoaded);
   })();
 
   const messages = getMessages(locale);
@@ -111,6 +124,7 @@ export function ContractWorkspace() {
 
   const loadPlaybookForDocument = async (documentId: string) => {
     setPlaybookLoading(true);
+    setPlaybookLoaded(false);
     setPlaybookLoadError(false);
     setPlaybookFieldErrors({});
     setPlaybookErrorKind(null);
@@ -132,6 +146,7 @@ export function ContractWorkspace() {
       setPlaybookLoadError(true);
     } finally {
       setPlaybookLoading(false);
+      setPlaybookLoaded(true);
     }
   };
 
@@ -906,6 +921,7 @@ export function ContractWorkspace() {
                     onAnalyze={handleAnalyzeContract}
                     isAnalyzing={findingsStatus === "running" || analysisStep !== null}
                     factsSummary={factsSummary}
+                    playbook={playbook}
                   />
                 </div>
               )}

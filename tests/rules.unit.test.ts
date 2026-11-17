@@ -748,6 +748,33 @@ describe("Deterministic Risk Rules Boundaries", () => {
       expect(acc1?.evidence).toHaveLength(2);
     });
 
+    it("renders ACC-1 with updated wording EN+BN ('Standard check', 'the client alone decides')", () => {
+      const accClause = createClause({
+        id: "acc-fmt",
+        clause_type: "definition",
+        facts: {
+          acceptance_decider: "client_sole",
+          payment_tied_to_acceptance: "yes",
+        },
+      });
+      const findings = evaluateRiskRules([accClause], basePlaybook);
+      const acc1 = findings.find((f) => f.rule_id === "ACC-1");
+      expect(acc1).toBeDefined();
+
+      const en = formatFindingText(acc1!, "en");
+      expect(en.title).toBe("Client alone decides acceptance, and payment depends on it");
+      expect(en.vsLine).toContain("Standard check:");
+      expect(en.vsLine).not.toContain("Your rule");
+      expect(en.vsLine).toContain("the client alone decides");
+      expect(en.reason).toContain("The client alone decides");
+      expect(en.reason).not.toContain("sole discretion");
+
+      const bn = formatFindingText(acc1!, "bn");
+      expect(bn.title).toBe("ক্লায়েন্ট একাই কাজের অনুমোদন নির্ধারণ করে এবং পেমেন্ট এর ওপর নির্ভরশীল");
+      expect(bn.vsLine).toContain("স্ট্যান্ডার্ড যাচাই:");
+      expect(bn.vsLine).not.toContain("আপনার নিয়ম");
+    });
+
     it("does not fire when client_sole has a delivery-only payment trigger", () => {
       const accClause = createClause({
         id: "acc-delivery",
@@ -1116,6 +1143,36 @@ describe("Deterministic Risk Rules Boundaries", () => {
 
       const formattedBn = formatFindingText(combo2!, "bn");
       expect(formattedBn.vsLine).toContain("যৌথ ঝুঁকি (মেধাস্বত্ব মালিকানা ও চুক্তি সমাপ্তিতে পারিশ্রমিক):");
+      expect(formattedBn.vsLine).not.toContain("IP-1");
+      expect(formattedBn.vsLine).not.toContain("TERM-2");
+    });
+
+    it("renders COMBO-2 vsLine with immediate effect when notice_days is 0", () => {
+      const ipClause = createClause({
+        clause_type: "ip_ownership",
+        facts: { transfer_timing: "on_creation" },
+      });
+      const termClause = createClause({
+        clause_type: "termination",
+        facts: {
+          client_convenience_termination: "yes",
+          notice_days: 0,
+          payment_for_work_done: "only_invoiced",
+        },
+      });
+
+      const findings = evaluateRiskRules([ipClause, termClause], basePlaybook);
+      const combo2 = findings.find((f) => f.rule_id === "COMBO-2");
+      expect(combo2).toBeDefined();
+
+      const formattedEn = formatFindingText(combo2!, "en");
+      expect(formattedEn.vsLine).toBe(
+        "Combined risk (IP ownership and payment on termination): the client can terminate for convenience with immediate effect and only pay for invoiced work.",
+      );
+
+      const formattedBn = formatFindingText(combo2!, "bn");
+      expect(formattedBn.vsLine).toContain("যৌথ ঝুঁকি (মেধাস্বত্ব মালিকানা ও চুক্তি সমাপ্তিতে পারিশ্রমিক):");
+      expect(formattedBn.vsLine).toContain("অবিলম্বে");
       expect(formattedBn.vsLine).not.toContain("IP-1");
       expect(formattedBn.vsLine).not.toContain("TERM-2");
     });

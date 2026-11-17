@@ -1059,6 +1059,10 @@ export function evaluateRiskRules(
             source_rules: ["IP-1", "PAY-1"],
             days_to_pay: daysToPay,
             transfer_timing: ipTiming || "on_creation",
+            playbook_max_days:
+              typeof pay1Finding.params.playbook_max_days === "number"
+                ? pay1Finding.params.playbook_max_days
+                : playbook.payment_terms.max_days_to_pay,
           },
           lawyer_review: true,
           lawyer_review_reasons: ["rule_requires_review", "combined_risk"],
@@ -1133,6 +1137,7 @@ export function evaluateRiskRules(
             source_rules: ["IP-1", "TERM-2"],
             notice_days: noticeDays,
             payment_for_work_done: String(payWorkDone),
+            playbook_min_notice_days: playbook.termination.min_notice_days,
           },
           lawyer_review: true,
           lawyer_review_reasons: ["rule_requires_review", "combined_risk"],

@@ -106,7 +106,9 @@ export function formatFindingText(
   } else if (finding.rule_id === "COMBO-2") {
     const noticeDays = finding.params.notice_days;
     const rT = ruleTemplates as unknown as Record<string, string>;
-    if (noticeDays === null || noticeDays === undefined || noticeDays === 0) {
+    if (noticeDays === 0) {
+      vsLineTemplate = rT.vsLineImmediate ?? ruleTemplates.vsLine;
+    } else if (noticeDays === null || noticeDays === undefined) {
       vsLineTemplate = rT.vsLineNoNotice ?? ruleTemplates.vsLine;
     }
 
