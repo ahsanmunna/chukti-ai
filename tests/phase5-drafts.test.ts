@@ -61,6 +61,21 @@ describe("Phase 5: Client Draft Message & Suggested Wording", () => {
       expect(message).toContain("plus 2 further points we can go through together");
       expect(message.toLowerCase()).not.toContain("smaller");
     });
+
+    it("formats overflow as singular 'point' when overflow is 1, and verifies 2-overflow still uses 'points'", () => {
+      // Build findings so exactly 9 eligible items remain after dedupe (so overflow is 1)
+      const findingsWithNineAfterDedupe = findings.filter((f) => f.rule_id !== "DEF-1");
+      const singleOverflowMessage = buildClientDraftMessage(
+        findingsWithNineAfterDedupe,
+        DEFAULT_PLAYBOOK,
+      );
+
+      expect(singleOverflowMessage).toContain("(plus 1 further point we can go through together)");
+      expect(singleOverflowMessage).not.toContain("1 further points");
+
+      // Verify the existing 2-overflow case still uses "points"
+      expect(message).toContain("(plus 2 further points we can go through together)");
+    });
   });
 
   describe("Suggested wording cleanliness", () => {
