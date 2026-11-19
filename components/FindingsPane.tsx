@@ -192,7 +192,7 @@ function getSeverityChipStyles(severity: RiskSeverity): string {
     case "high":
       return "bg-[#fff7ed] text-[#9a3412] border border-[#fed7aa]";
     case "medium":
-      return "bg-[#fffbeb] text-[#78350f] border border-[#fde68a]";
+      return "bg-[#fefce8] text-[#854d0e] border border-[#fef08a]";
     case "low":
       return "bg-[#f0f4f8] text-[#1e3a5f] border border-[#cbd5e1]";
   }
@@ -205,7 +205,7 @@ function getFindingCardBorderAccent(severity: RiskSeverity): string {
     case "high":
       return "border-l-4 border-l-[#ea580c]";
     case "medium":
-      return "border-l-4 border-l-[#d97706]";
+      return "border-l-4 border-l-[#eab308]";
     case "low":
       return "border-l-4 border-l-[#64748b]";
   }
@@ -519,7 +519,7 @@ export function FindingsPane({
             {/* Horizontal proportional bar */}
             {totalFindings > 0 ? (
               <div
-                className="h-2.5 w-full flex overflow-hidden rounded-full bg-slate-200"
+                className="h-2.5 w-full flex gap-[2px] overflow-hidden rounded-full bg-white"
                 role="progressbar"
                 aria-label="Severity distribution"
                 aria-valuemin={0}
@@ -543,7 +543,7 @@ export function FindingsPane({
                 {countsBySeverity.medium > 0 && (
                   <div
                     style={{ width: `${(countsBySeverity.medium / totalFindings) * 100}%` }}
-                    className="bg-[#d97706] transition-[width] duration-300"
+                    className="bg-[#eab308] transition-[width] duration-300"
                     title={`${messages.severityLabels.medium}: ${countsBySeverity.medium}`}
                   />
                 )}
