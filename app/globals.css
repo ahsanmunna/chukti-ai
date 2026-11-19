@@ -4,9 +4,9 @@
   color-scheme: light;
 
   /* Surface tokens */
-  --color-surface-canvas: #f7f8fa;
+  --color-surface-canvas: #f8fafc;
   --color-surface-panel: #ffffff;
-  --color-surface-subtle: #eff2f6;
+  --color-surface-subtle: #f1f5f9;
   --color-surface-warning: #fef8e7;
   --color-surface-danger: #fef2f2;
   --color-surface-success: #eefaf1;
@@ -36,6 +36,27 @@
   --color-accent-primary-hover: #0a3642;
   --color-accent-soft: #e6f0f2;
   --color-focus-ring: #0f4c5c;
+
+  /* Severity scale tokens (all text WCAG AA >= 4.5:1) */
+  --sev-critical-bg: #991b1b;
+  --sev-critical-text: #ffffff;
+  --sev-critical-border: #7f1d1d;
+  --sev-critical-accent: #991b1b;
+
+  --sev-high-bg: #fff7ed;
+  --sev-high-text: #9a3412;
+  --sev-high-border: #fed7aa;
+  --sev-high-accent: #ea580c;
+
+  --sev-medium-bg: #fffbeb;
+  --sev-medium-text: #78350f;
+  --sev-medium-border: #fde68a;
+  --sev-medium-accent: #d97706;
+
+  --sev-low-bg: #f0f4f8;
+  --sev-low-text: #1e3a5f;
+  --sev-low-border: #cbd5e1;
+  --sev-low-accent: #64748b;
 }
 
 @theme inline {
@@ -77,9 +98,72 @@ body {
   background-color: var(--color-surface-canvas);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* Bangla typography with proper font and line-height */
+:lang(bn),
+[lang="bn"],
+.font-bn {
+  font-family: var(--font-bn-sans), system-ui, sans-serif;
+  line-height: 1.65;
+}
+
+:lang(bn) :is(p, span, div, blockquote, label, li, h1, h2, h3, h4, textarea, button),
+[lang="bn"] :is(p, span, div, blockquote, label, li, h1, h2, h3, h4, textarea, button),
+.font-bn :is(p, span, div, blockquote, label, li, h1, h2, h3, h4, textarea, button),
+:lang(bn) [class*="leading-"],
+[lang="bn"] [class*="leading-"],
+.font-bn [class*="leading-"] {
+  line-height: 1.65;
 }
 
 *:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
+}
+
+/* Card fade/slide in animation */
+@keyframes cardFadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-card-in {
+  animation: cardFadeSlideIn 200ms ease-out both;
+}
+
+/* Transitions: 150-250ms ease-out for expand/collapse and tabs */
+.tab-transition {
+  transition: background-color 180ms ease-out, color 180ms ease-out, border-color 180ms ease-out;
+}
+
+.collapse-transition {
+  transition: max-height 200ms ease-out, opacity 200ms ease-out;
+}
+
+/* Paper page styling */
+.paper-page {
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+}
+
+/* Prefers-reduced-motion compliance */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

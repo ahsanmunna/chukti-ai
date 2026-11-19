@@ -89,23 +89,23 @@ export function PlaybookPane({
   return (
     <section
       aria-label={messages.title}
-      className="rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6"
+      className="flex flex-col lg:h-full rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6 lg:overflow-hidden"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
         <h2 className="text-base font-semibold text-text-primary">{messages.title}</h2>
         <span
-          className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold ${statusBadge.cls}`}
+          className={`inline-flex items-center rounded border px-2 py-0.5 text-[13px] font-semibold ${statusBadge.cls}`}
         >
           {statusBadge.label}
         </span>
       </div>
 
-      <div className="mt-3 rounded-md border border-border-warning bg-surface-warning px-3 py-2 text-xs font-medium text-text-warning">
+      <div className="shrink-0 mt-3 rounded-md border border-border-warning bg-surface-warning px-3 py-2 text-[13px] leading-[1.6] font-medium text-text-warning">
         {messages.starterNote}
       </div>
 
       {!documentId ? (
-        <div className="mt-3 rounded-md border border-border-subtle bg-surface-subtle px-3 py-2.5 text-xs text-text-secondary">
+        <div className="shrink-0 mt-3 rounded-md border border-border-subtle bg-surface-subtle px-3 py-2.5 text-[13px] leading-[1.6] text-text-secondary">
           {messages.noDocumentNotice}
         </div>
       ) : null}
@@ -114,12 +114,12 @@ export function PlaybookPane({
         <div
           role="status"
           aria-live="polite"
-          className="mt-4 rounded-md border border-border-subtle bg-surface-subtle p-4 text-sm text-text-secondary"
+          className="mt-4 rounded-md border border-border-subtle bg-surface-subtle p-4 text-sm text-text-secondary my-auto"
         >
           {messages.loadingState}
         </div>
       ) : (
-        <>
+        <div className="flex-1 lg:overflow-y-auto pr-1">
           {loadError ? (
             <div
               role="alert"
@@ -133,7 +133,7 @@ export function PlaybookPane({
                   <button
                     type="button"
                     onClick={onRetryLoad}
-                    className="rounded-md border border-border-danger bg-surface-panel px-3 py-1.5 text-xs font-semibold text-text-danger hover:bg-surface-subtle"
+                    className="rounded-md border border-border-danger bg-surface-panel px-3 py-1.5 text-[13px] font-semibold text-text-danger hover:bg-surface-subtle"
                   >
                     {messages.retryButton}
                   </button>
@@ -177,13 +177,13 @@ export function PlaybookPane({
                   >
                     {fields.liabilityCap.requireLabel}
                   </label>
-                  <p id="playbook-require-cap-help" className="mt-0.5 text-xs text-text-muted">
+                  <p id="playbook-require-cap-help" className="mt-0.5 text-[13px] leading-[1.6] text-text-muted">
                     {fields.liabilityCap.requireHelp}
                   </p>
                   {fieldErrors["liability_cap.require_cap"] ? (
                     <p
                       id="playbook-require-cap-error"
-                      className="mt-1 text-xs font-medium text-text-danger"
+                      className="mt-1 text-[13px] leading-[1.6] font-medium text-text-danger"
                       role="alert"
                     >
                       {getPlaybookFieldErrorMessage("liability_cap.require_cap", locale)}
@@ -230,13 +230,13 @@ export function PlaybookPane({
                   }
                   className="mt-1.5 w-full rounded-md border border-border-default bg-surface-panel px-3 py-2 text-sm text-text-primary disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-text-muted"
                 />
-                <p id="playbook-max-multiple-help" className="mt-1 text-xs text-text-muted">
+                <p id="playbook-max-multiple-help" className="mt-1 text-[13px] leading-[1.6] text-text-muted">
                   {fields.liabilityCap.multipleHelp}
                 </p>
                 {fieldErrors["liability_cap.max_multiple_of_fees"] ? (
                   <p
                     id="playbook-max-multiple-error"
-                    className="mt-1 text-xs font-medium text-text-danger"
+                    className="mt-1 text-[13px] leading-[1.6] font-medium text-text-danger"
                     role="alert"
                   >
                     {getPlaybookFieldErrorMessage("liability_cap.max_multiple_of_fees", locale)}
@@ -286,13 +286,13 @@ export function PlaybookPane({
                   }
                   className="mt-1.5 w-full rounded-md border border-border-default bg-surface-panel px-3 py-2 text-sm text-text-primary"
                 />
-                <p id="playbook-max-days-help" className="mt-1 text-xs text-text-muted">
+                <p id="playbook-max-days-help" className="mt-1 text-[13px] leading-[1.6] text-text-muted">
                   {fields.paymentTerms.maxDaysHelp}
                 </p>
                 {fieldErrors["payment_terms.max_days_to_pay"] ? (
                   <p
                     id="playbook-max-days-error"
-                    className="mt-1 text-xs font-medium text-text-danger"
+                    className="mt-1 text-[13px] leading-[1.6] font-medium text-text-danger"
                     role="alert"
                   >
                     {getPlaybookFieldErrorMessage("payment_terms.max_days_to_pay", locale)}
@@ -336,13 +336,13 @@ export function PlaybookPane({
                     </option>
                   ))}
                 </select>
-                <p id="playbook-ip-ownership-help" className="mt-1 text-xs text-text-muted">
+                <p id="playbook-ip-ownership-help" className="mt-1 text-[13px] leading-[1.6] text-text-muted">
                   {fields.ipOwnership.selectHelp}
                 </p>
                 {fieldErrors.ip_ownership ? (
                   <p
                     id="playbook-ip-ownership-error"
-                    className="mt-1 text-xs font-medium text-text-danger"
+                    className="mt-1 text-[13px] leading-[1.6] font-medium text-text-danger"
                     role="alert"
                   >
                     {getPlaybookFieldErrorMessage("ip_ownership", locale)}
@@ -393,13 +393,13 @@ export function PlaybookPane({
                   }
                   className="mt-1.5 w-full rounded-md border border-border-default bg-surface-panel px-3 py-2 text-sm text-text-primary"
                 />
-                <p id="playbook-notice-days-help" className="mt-1 text-xs text-text-muted">
+                <p id="playbook-notice-days-help" className="mt-1 text-[13px] leading-[1.6] text-text-muted">
                   {fields.termination.noticeHelp}
                 </p>
                 {fieldErrors["termination.min_notice_days"] ? (
                   <p
                     id="playbook-notice-days-error"
-                    className="mt-1 text-xs font-medium text-text-danger"
+                    className="mt-1 text-[13px] leading-[1.6] font-medium text-text-danger"
                     role="alert"
                   >
                     {getPlaybookFieldErrorMessage("termination.min_notice_days", locale)}
@@ -435,13 +435,13 @@ export function PlaybookPane({
                   >
                     {fields.termination.payWorkDoneLabel}
                   </label>
-                  <p id="playbook-pay-work-done-help" className="mt-0.5 text-xs text-text-muted">
+                  <p id="playbook-pay-work-done-help" className="mt-0.5 text-[13px] leading-[1.6] text-text-muted">
                     {fields.termination.payWorkDoneHelp}
                   </p>
                   {fieldErrors["termination.pay_for_work_done"] ? (
                     <p
                       id="playbook-pay-work-done-error"
-                      className="mt-1 text-xs font-medium text-text-danger"
+                      className="mt-1 text-[13px] leading-[1.6] font-medium text-text-danger"
                       role="alert"
                     >
                       {getPlaybookFieldErrorMessage("termination.pay_for_work_done", locale)}
@@ -483,13 +483,13 @@ export function PlaybookPane({
                   >
                     {fields.scopeChanges.writtenOrderLabel}
                   </label>
-                  <p id="playbook-written-order-help" className="mt-0.5 text-xs text-text-muted">
+                  <p id="playbook-written-order-help" className="mt-0.5 text-[13px] leading-[1.6] text-text-muted">
                     {fields.scopeChanges.writtenOrderHelp}
                   </p>
                   {fieldErrors["scope_changes.require_written_change_order"] ? (
                     <p
                       id="playbook-written-order-error"
-                      className="mt-1 text-xs font-medium text-text-danger"
+                      className="mt-1 text-[13px] leading-[1.6] font-medium text-text-danger"
                       role="alert"
                     >
                       {getPlaybookFieldErrorMessage("scope_changes.require_written_change_order", locale)}
@@ -503,7 +503,7 @@ export function PlaybookPane({
             {saveStatus === "error" ? (
               <div
                 role="alert"
-                className="rounded-md border border-border-danger bg-surface-danger px-3 py-2 text-xs font-medium text-text-danger"
+                className="rounded-md border border-border-danger bg-surface-danger px-3 py-2 text-[13px] font-medium text-text-danger"
               >
                 {playbookErrorKind === "failed"
                   ? messages.saveFailed
@@ -515,7 +515,7 @@ export function PlaybookPane({
               <div
                 role="status"
                 aria-live="polite"
-                className="flex items-center gap-2 rounded-md border border-border-success bg-surface-success px-3 py-2 text-xs font-medium text-text-success"
+                className="flex items-center gap-2 rounded-md border border-border-success bg-surface-success px-3 py-2 text-[13px] font-medium text-text-success"
               >
                 <svg
                   aria-hidden="true"
@@ -545,7 +545,7 @@ export function PlaybookPane({
 
               <div className="space-y-3 rounded-md border border-border-default bg-surface-subtle p-3.5">
                 {/* Gemini Free-tier Privacy Notice */}
-                <div className="rounded border border-border-warning bg-surface-warning p-2.5 text-xs text-text-warning">
+                <div className="rounded border border-border-warning bg-surface-warning p-2.5 text-[13px] leading-[1.6] text-text-warning">
                   <p>{messages.extractNotice}</p>
                 </div>
 
@@ -578,13 +578,13 @@ export function PlaybookPane({
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                       </svg>
-                      <p className="text-xs font-semibold text-text-info">
+                      <p className="text-[13px] font-semibold text-text-info">
                         {analysisStep === 1
                           ? messages.stepReadingClauses
                           : messages.stepCheckingRisks}
                       </p>
                     </div>
-                    <p className="text-[11px] text-text-secondary">
+                    <p className="text-[13px] text-text-secondary">
                       {messages.stepTimeEstimate}
                     </p>
                   </div>
@@ -596,13 +596,13 @@ export function PlaybookPane({
                     role="alert"
                     className="space-y-2 rounded-md border border-border-danger bg-surface-danger p-3 text-left"
                   >
-                    <p className="text-xs font-semibold text-text-danger">
+                    <p className="text-[13px] font-semibold text-text-danger">
                       {analysisError}
                     </p>
                     <button
                       type="button"
                       onClick={onRetryAnalysis ?? onAnalyzeContract}
-                      className="inline-flex items-center rounded border border-border-danger bg-surface-panel px-2.5 py-1 text-xs font-semibold text-text-danger hover:bg-surface-subtle"
+                      className="inline-flex items-center rounded border border-border-danger bg-surface-panel px-2.5 py-1 text-[13px] font-semibold text-text-danger hover:bg-surface-subtle"
                     >
                       {messages.retryButton}
                     </button>
@@ -631,7 +631,7 @@ export function PlaybookPane({
               </div>
             </div>
           </form>
-        </>
+        </div>
       )}
     </section>
   );

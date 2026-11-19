@@ -5,10 +5,16 @@
   },
   "header": {
     "brand": "Chukti AI",
-    "subtitle": "Contract protection copilot",
+    "subtitle": "Contract review for freelancers",
     "languageLabel": "Language",
     "langEn": "EN",
     "langBn": "বাংলা"
+  },
+  "howItWorks": {
+    "title": "How it works",
+    "step1": "Upload a text PDF.",
+    "step2": "Set your 5 preferences.",
+    "step3": "Review risks with the contract's own words as proof"
   },
   "tabs": {
     "groupLabel": "Workspace sections",
@@ -31,6 +37,9 @@
     "uploadingProgressLabel": "Upload progress",
     "processingServer": "Reading PDF pages and normalizing text...",
     "loadingExistingTitle": "Loading saved contract...",
+    "loadExistingErrorTitle": "Couldn't open this saved contract",
+    "retryButton": "Retry",
+    "startOver": "Start over",
     "errorBadge": "Upload error",
     "tryAgain": "Choose another file",
     "uploadAnother": "Upload another PDF",
