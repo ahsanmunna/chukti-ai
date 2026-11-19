@@ -81,12 +81,12 @@ export function ClausesPane({
   return (
     <section
       aria-label={messages.tabTitle}
-      className="flex flex-col h-full rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6 overflow-hidden"
+      className="flex flex-col lg:h-full rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6 lg:overflow-hidden"
     >
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
         <h2 className="text-base font-semibold text-text-primary">{messages.tabTitle}</h2>
         {clauses.length > 0 ? (
-          <span className="inline-flex items-center rounded border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-semibold text-text-secondary">
+          <span className="inline-flex items-center rounded border border-border-default bg-surface-subtle px-2 py-0.5 text-[13px] font-semibold text-text-secondary">
             {clauses.length}
           </span>
         ) : null}
@@ -123,7 +123,7 @@ export function ClausesPane({
             </svg>
             <p className="text-sm font-semibold text-text-info">{messages.runningTitle}</p>
           </div>
-          <p className="mt-2 text-xs text-text-secondary">{messages.runningDescription}</p>
+          <p className="mt-2 text-[13px] text-text-secondary">{messages.runningDescription}</p>
         </div>
       ) : null}
 
@@ -148,14 +148,14 @@ export function ClausesPane({
             </svg>
             <div className="min-w-0 flex-1">
               <h3 className="text-sm font-semibold text-text-danger">{messages.errorTitle}</h3>
-              <p className="mt-1 text-xs text-text-danger">
+              <p className="mt-1 text-[13px] text-text-danger">
                 {getExtractionErrorMessage(errorCode, locale)}
               </p>
               <button
                 type="button"
                 onClick={onExtract}
                 disabled={isExtractDisabled}
-                className="mt-3 inline-flex items-center rounded-md border border-border-danger bg-surface-panel px-3 py-1.5 text-xs font-semibold text-text-danger hover:bg-surface-subtle disabled:opacity-50"
+                className="mt-3 inline-flex items-center rounded-md border border-border-danger bg-surface-panel px-3 py-1.5 text-[13px] font-semibold text-text-danger hover:bg-surface-subtle disabled:opacity-50"
               >
                 {messages.retryButton}
               </button>
@@ -185,12 +185,12 @@ export function ClausesPane({
             <h3 className="text-sm font-semibold text-text-primary">
               {messages.emptyStateHeading}
             </h3>
-            <p className="mt-1 text-xs text-text-secondary">
+            <p className="mt-1 text-[13px] text-text-secondary">
               {messages.emptyStateDescription}
             </p>
           </div>
 
-          <div className="rounded border border-border-warning bg-surface-warning p-2.5 text-left text-xs text-text-warning">
+          <div className="rounded border border-border-warning bg-surface-warning p-2.5 text-left text-[13px] leading-[1.6] text-text-warning">
             {messages.extractNotice}
           </div>
 
@@ -198,7 +198,7 @@ export function ClausesPane({
             type="button"
             onClick={onExtract}
             disabled={isExtractDisabled}
-            className="inline-flex items-center rounded-md bg-accent-primary px-4 py-2 text-xs font-semibold text-text-inverse hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center rounded-md bg-accent-primary px-4 py-2 text-[13px] font-semibold text-text-inverse hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {messages.extractButton}
           </button>
@@ -207,20 +207,20 @@ export function ClausesPane({
 
       {/* 4. Results State */}
       {clauses.length > 0 && status !== "running" ? (
-        <div className="flex-1 overflow-y-auto mt-4 space-y-5 pr-1">
+        <div className="flex-1 lg:overflow-y-auto mt-4 space-y-5 pr-1">
           {/* Results Header */}
           <div className="rounded-md border border-border-default bg-surface-subtle p-3.5">
-            <p className="text-xs font-medium text-text-primary">
+            <p className="text-[14px] font-medium text-text-primary">
               {formatSummary(
                 runData?.accepted_count ?? clauses.length,
                 runData?.rejected_count ?? 0,
               )}
             </p>
-            <p className="mt-1 text-xs text-text-secondary">
+            <p className="mt-1 text-[13px] leading-[1.6] text-text-secondary">
               {messages.verifiedHeaderNotice}
             </p>
             {runData?.cached ? (
-              <div className="mt-2 inline-flex items-center gap-1.5 rounded border border-border-info bg-surface-info px-2 py-0.5 text-xs font-medium text-text-info">
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded border border-border-info bg-surface-info px-2 py-0.5 text-[13px] font-medium text-text-info">
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 16 16"
@@ -242,10 +242,10 @@ export function ClausesPane({
             {groupedClauses.map((group) => (
               <div key={group.type} className="space-y-3">
                 <div className="flex items-center justify-between border-b border-border-subtle pb-1.5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                  <h3 className="text-[13px] font-bold uppercase tracking-wider text-text-secondary">
                     {group.label}
                   </h3>
-                  <span className="text-xs font-semibold text-text-muted">
+                  <span className="text-[13px] font-semibold text-text-muted">
                     {group.items.length}
                   </span>
                 </div>
@@ -277,18 +277,18 @@ export function ClausesPane({
                           className="w-full text-left rounded focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                         >
                           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                            <span className="inline-flex items-center rounded border border-border-default bg-surface-panel px-2 py-0.5 text-xs font-semibold text-text-primary">
+                            <span className="inline-flex items-center rounded border border-border-default bg-surface-panel px-2 py-0.5 text-[13px] font-semibold text-text-primary">
                               {messages.pageLabel} {clause.page_number}
                             </span>
 
                             <div className="flex flex-wrap items-center gap-1.5">
                               {clause.extraction_confidence === "low" ? (
-                                <span className="inline-flex items-center gap-1 rounded border border-border-warning bg-surface-warning px-2 py-0.5 text-[11px] font-semibold text-text-warning">
+                                <span className="inline-flex items-center gap-1 rounded border border-border-warning bg-surface-warning px-2 py-0.5 text-[13px] font-semibold text-text-warning">
                                   <svg
                                     aria-hidden="true"
                                     viewBox="0 0 16 16"
                                     fill="currentColor"
-                                    className="h-3 w-3 shrink-0"
+                                    className="h-3.5 w-3.5 shrink-0"
                                   >
                                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
                                     <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z" />
@@ -299,7 +299,7 @@ export function ClausesPane({
                             </div>
                           </div>
 
-                          <div className="font-serif-contract whitespace-pre-wrap break-words text-sm leading-relaxed text-text-primary">
+                          <div className="font-serif-contract whitespace-pre-wrap break-words text-[15px] leading-[1.6] text-text-primary">
                             {displayText}
                           </div>
                         </button>
@@ -309,7 +309,7 @@ export function ClausesPane({
                             <button
                               type="button"
                               onClick={() => toggleExpand(clause.id)}
-                              className="rounded text-xs font-semibold text-accent-primary hover:underline focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                              className="rounded text-[13px] font-semibold text-accent-primary hover:underline focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                             >
                               {isExpanded ? messages.showLess : messages.showMore}
                             </button>

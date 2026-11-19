@@ -110,6 +110,15 @@ body {
   line-height: 1.65;
 }
 
+:lang(bn) :is(p, span, div, blockquote, label, li, h1, h2, h3, h4, textarea, button),
+[lang="bn"] :is(p, span, div, blockquote, label, li, h1, h2, h3, h4, textarea, button),
+.font-bn :is(p, span, div, blockquote, label, li, h1, h2, h3, h4, textarea, button),
+:lang(bn) [class*="leading-"],
+[lang="bn"] [class*="leading-"],
+.font-bn [class*="leading-"] {
+  line-height: 1.65;
+}
+
 *:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;

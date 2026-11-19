@@ -60,7 +60,6 @@ const UUID_PATTERN =
 
 export function ContractWorkspace() {
   const [locale, setLocale] = useState<Locale>("en");
-  const [activeMobileTab, setActiveMobileTab] = useState<"document" | "playbook">("document");
 
   const [docStatus, setDocStatus] = useState<DocumentPaneStatus>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -374,10 +373,6 @@ export function ContractWorkspace() {
         char_end: e.char_end,
       })),
     );
-
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setActiveMobileTab("document");
-    }
   };
 
   const handleSelectEvidence = (finding: FindingRow, evidenceItem: FindingEvidenceItem) => {
@@ -391,10 +386,6 @@ export function ContractWorkspace() {
         char_end: evidenceItem.char_end,
       },
     ]);
-
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setActiveMobileTab("document");
-    }
   };
 
   const handleSelectClause = (clause: ClauseDto) => {
@@ -406,9 +397,6 @@ export function ContractWorkspace() {
       char_start: clause.char_start,
       char_end: clause.char_end,
     });
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setActiveMobileTab("document");
-    }
   };
 
   const loadInitialDocument = async (docId: string) => {
@@ -653,7 +641,7 @@ export function ContractWorkspace() {
   const isUploaded = Boolean(documentData);
 
   return (
-    <div className={`min-h-screen ${isUploaded ? "md:h-screen" : ""} flex flex-col bg-surface-canvas text-text-primary`}>
+    <div className={`min-h-screen ${isUploaded ? "lg:h-screen" : ""} flex flex-col bg-surface-canvas text-text-primary`}>
       {/* 4. Notice Banner: Slim single line, softer color, small Notice label */}
       <div
         role="banner"
@@ -734,54 +722,15 @@ export function ContractWorkspace() {
       </header>
 
       {/* 5. Layout: container max-width 1440px, 24-32px gutters */}
-      <main className="flex-1 min-h-0 flex flex-col mx-auto w-full max-w-[1440px] px-6 sm:px-8 py-4 sm:py-6">
-        {/* Mobile tabs (<768px) shown only after upload */}
-        {isUploaded ? (
-          <div
-            role="tablist"
-            aria-label={messages.tabs.groupLabel}
-            className="mb-4 grid grid-cols-2 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1 md:hidden shrink-0"
-          >
-            <button
-              type="button"
-              role="tab"
-              id="tab-document"
-              aria-selected={activeMobileTab === "document"}
-              aria-controls="panel-document"
-              onClick={() => setActiveMobileTab("document")}
-              className={`rounded-md px-3 py-2 text-xs font-semibold tab-transition ${
-                activeMobileTab === "document"
-                  ? "bg-surface-panel text-text-primary shadow-xs"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              {messages.tabs.document}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-playbook"
-              aria-selected={activeMobileTab === "playbook"}
-              aria-controls="panel-playbook"
-              onClick={() => setActiveMobileTab("playbook")}
-              className={`rounded-md px-3 py-2 text-xs font-semibold tab-transition ${
-                activeMobileTab === "playbook"
-                  ? "bg-surface-panel text-text-primary shadow-xs"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              {messages.tabs.findings}
-            </button>
-          </div>
-        ) : null}
+      <main className="flex-1 lg:min-h-0 flex flex-col mx-auto w-full max-w-[1440px] px-6 sm:px-8 py-4 sm:py-6">
 
         {!isUploaded ? (
           /* Empty state (no document): two columns.
              Left: large upload dropzone.
              Right: "How it works" with 3 steps plus the playbook. No large empty boxes. */
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
             {/* Left: Large upload dropzone */}
-            <div className="md:col-span-7 flex flex-col">
+            <div className="lg:col-span-7 flex flex-col">
               <DocumentPane
                 messages={messages.documentPane}
                 locale={locale}
@@ -803,7 +752,7 @@ export function ContractWorkspace() {
             </div>
 
             {/* Right: "How it works" with 3 steps plus the playbook */}
-            <div className="md:col-span-5 flex flex-col space-y-5">
+            <div className="lg:col-span-5 flex flex-col space-y-5">
               <div className="rounded-lg border border-border-default bg-surface-panel p-5 sm:p-6 space-y-3.5">
                 <h2 className="text-base font-semibold text-text-primary">
                   {messages.howItWorks.title}
@@ -870,17 +819,14 @@ export function ContractWorkspace() {
             </div>
           </div>
         ) : (
-          /* After upload: a full-height workspace, PDF pane and Findings pane side by side,
-             each scrolling inside itself, tab bar always visible. */
-          <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 items-stretch">
+          /* After upload: a full-height workspace at lg and above, PDF pane and Findings pane side by side,
+             each scrolling inside itself. On narrow screens (<lg), panes stack (PDF pane first, then the tabs panel)
+             without fixed height or inner scroll so the page scrolls normally, and the tab bar is sticky at the top. */
+          <div className="flex-1 lg:min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start lg:items-stretch">
             {/* Left: PDF pane */}
             <div
               id="panel-document"
-              role="tabpanel"
-              aria-labelledby="tab-document"
-              className={`md:col-span-7 h-full min-h-0 flex flex-col ${
-                activeMobileTab === "document" ? "flex" : "hidden md:flex"
-              }`}
+              className="lg:col-span-7 flex flex-col h-[520px] sm:h-[600px] lg:h-full lg:min-h-0"
             >
               <DocumentPane
                 messages={messages.documentPane}
@@ -902,20 +848,16 @@ export function ContractWorkspace() {
               />
             </div>
 
-            {/* Right: Tab bar (always visible) + Active Tab Panel */}
+            {/* Right: Tab bar (always visible / sticky on narrow screens) + Active Tab Panel */}
             <div
               id="panel-playbook"
-              role="tabpanel"
-              aria-labelledby="tab-playbook"
-              className={`md:col-span-5 h-full min-h-0 flex flex-col ${
-                activeMobileTab === "playbook" ? "flex" : "hidden md:flex"
-              }`}
+              className="lg:col-span-5 flex flex-col lg:h-full lg:min-h-0"
             >
-              {/* Tab bar: Always visible */}
+              {/* Tab bar: Always visible / sticky on narrow screens */}
               <div
                 role="tablist"
                 aria-label={messages.tabs.rightPaneLabel}
-                className="shrink-0 mb-3 grid grid-cols-3 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1"
+                className="sticky top-0 z-20 shrink-0 mb-3 grid grid-cols-3 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1 shadow-xs lg:static lg:shadow-none"
               >
                 <button
                   type="button"
@@ -924,7 +866,7 @@ export function ContractWorkspace() {
                   aria-selected={activeRightTab === "playbook"}
                   aria-controls="panel-inner-playbook"
                   onClick={() => setActiveRightTab("playbook")}
-                  className={`tab-transition rounded-md px-2 py-1.5 text-xs font-semibold ${
+                  className={`tab-transition rounded-md px-2 py-1.5 text-[13px] font-semibold ${
                     activeRightTab === "playbook"
                       ? "bg-surface-panel text-text-primary shadow-xs"
                       : "text-text-secondary hover:text-text-primary"
@@ -939,7 +881,7 @@ export function ContractWorkspace() {
                   aria-selected={activeRightTab === "clauses"}
                   aria-controls="panel-inner-clauses"
                   onClick={() => setActiveRightTab("clauses")}
-                  className={`tab-transition flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold ${
+                  className={`tab-transition flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-semibold ${
                     activeRightTab === "clauses"
                       ? "bg-surface-panel text-text-primary shadow-xs"
                       : "text-text-secondary hover:text-text-primary"
@@ -947,7 +889,7 @@ export function ContractWorkspace() {
                 >
                   <span>{messages.tabs.clauses}</span>
                   {clauses.length > 0 ? (
-                    <span className="rounded-full bg-accent-primary px-1.5 py-0.2 text-[10px] text-text-inverse">
+                    <span className="rounded-full bg-accent-primary px-1.5 py-0.2 text-[12px] font-bold text-text-inverse">
                       {clauses.length}
                     </span>
                   ) : null}
@@ -959,7 +901,7 @@ export function ContractWorkspace() {
                   aria-selected={activeRightTab === "findings"}
                   aria-controls="panel-inner-findings"
                   onClick={() => setActiveRightTab("findings")}
-                  className={`tab-transition flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold ${
+                  className={`tab-transition flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-semibold ${
                     activeRightTab === "findings"
                       ? "bg-surface-panel text-text-primary shadow-xs"
                       : "text-text-secondary hover:text-text-primary"
@@ -967,21 +909,21 @@ export function ContractWorkspace() {
                 >
                   <span>{messages.tabs.findings}</span>
                   {findings.length > 0 ? (
-                    <span className="rounded-full bg-accent-primary px-1.5 py-0.2 text-[10px] text-text-inverse">
+                    <span className="rounded-full bg-accent-primary px-1.5 py-0.2 text-[12px] font-bold text-text-inverse">
                       {findings.length}
                     </span>
                   ) : null}
                 </button>
               </div>
 
-              {/* Active Tab Panel scrolling inside itself */}
-              <div className="flex-1 min-h-0 overflow-hidden">
+              {/* Active Tab Panel */}
+              <div className="flex-1 lg:min-h-0 lg:overflow-hidden">
                 {activeRightTab === "playbook" ? (
                   <div
                     id="panel-inner-playbook"
                     role="tabpanel"
                     aria-labelledby="tab-inner-playbook"
-                    className="h-full min-h-0"
+                    className="h-auto lg:h-full lg:min-h-0"
                   >
                     <PlaybookPane
                       messages={messages.playbookPane}
@@ -1019,7 +961,7 @@ export function ContractWorkspace() {
                     id="panel-inner-clauses"
                     role="tabpanel"
                     aria-labelledby="tab-inner-clauses"
-                    className="h-full min-h-0"
+                    className="h-auto lg:h-full lg:min-h-0"
                   >
                     <ClausesPane
                       messages={messages.clausesPane}
@@ -1045,7 +987,7 @@ export function ContractWorkspace() {
                     id="panel-inner-findings"
                     role="tabpanel"
                     aria-labelledby="tab-inner-findings"
-                    className="h-full min-h-0"
+                    className="h-auto lg:h-full lg:min-h-0"
                   >
                     <FindingsPane
                       messages={messages.findingsPane}

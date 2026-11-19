@@ -84,14 +84,14 @@ function CopyButton({
     <button
       type="button"
       onClick={handleCopy}
-      className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-panel px-2 py-0.5 text-[11px] font-medium text-text-secondary hover:bg-surface-subtle hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+      className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-panel px-2.5 py-1 text-[13px] font-medium text-text-secondary hover:bg-surface-subtle hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
       title={label}
     >
       <svg
         aria-hidden="true"
         viewBox="0 0 16 16"
         fill="currentColor"
-        className="h-3 w-3 shrink-0"
+        className="h-3.5 w-3.5 shrink-0"
       >
         <path d="M4 2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1H2z" />
       </svg>
@@ -342,7 +342,7 @@ export function FindingsPane({
   return (
     <section
       aria-label={messages.tabTitle}
-      className="flex flex-col h-full rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6"
+      className="flex flex-col lg:h-full rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6"
     >
       {/* Title without duplicate total chip */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
@@ -353,7 +353,7 @@ export function FindingsPane({
       {isStale && status !== "running" ? (
         <div
           role="status"
-          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border-warning bg-surface-warning p-3.5 text-xs text-text-warning"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border-warning bg-surface-warning p-3.5 text-[13px] text-text-warning"
         >
           <div className="flex items-center gap-2">
             <svg
@@ -371,7 +371,7 @@ export function FindingsPane({
             type="button"
             onClick={onAnalyze}
             disabled={isAnalyzing || !hasClauses}
-            className="rounded border border-border-warning bg-surface-panel px-2.5 py-1 text-xs font-semibold text-text-warning hover:bg-surface-subtle disabled:opacity-50"
+            className="rounded border border-border-warning bg-surface-panel px-2.5 py-1 text-[13px] font-semibold text-text-warning hover:bg-surface-subtle disabled:opacity-50"
           >
             {messages.reRunButton}
           </button>
@@ -409,7 +409,7 @@ export function FindingsPane({
             </svg>
             <p className="text-sm font-semibold text-text-info">{messages.runningTitle}</p>
           </div>
-          <p className="mt-2 text-xs text-text-secondary">{messages.runningDescription}</p>
+          <p className="mt-2 text-[13px] text-text-secondary">{messages.runningDescription}</p>
         </div>
       ) : null}
 
@@ -434,14 +434,14 @@ export function FindingsPane({
             </svg>
             <div className="min-w-0 flex-1">
               <h3 className="text-sm font-semibold text-text-danger">{messages.errorTitle}</h3>
-              <p className="mt-1 text-xs text-text-danger">
+              <p className="mt-1 text-[13px] text-text-danger">
                 {getAnalysisErrorMessage(errorCode, locale)}
               </p>
               <button
                 type="button"
                 onClick={onAnalyze}
                 disabled={isAnalyzing || !hasClauses}
-                className="mt-3 inline-flex items-center rounded-md border border-border-danger bg-surface-panel px-3 py-1.5 text-xs font-semibold text-text-danger hover:bg-surface-subtle disabled:opacity-50"
+                className="mt-3 inline-flex items-center rounded-md border border-border-danger bg-surface-panel px-3 py-1.5 text-[13px] font-semibold text-text-danger hover:bg-surface-subtle disabled:opacity-50"
               >
                 {messages.retryButton}
               </button>
@@ -468,10 +468,10 @@ export function FindingsPane({
             />
           </svg>
           <div>
-            <h3 className="text-sm font-semibold text-text-primary">
+            <h3 className="text-[15px] font-semibold text-text-primary">
               {messages.notAnalyzedHeading}
             </h3>
-            <p className="mt-1 text-xs text-text-secondary">
+            <p className="mt-1 text-[13px] text-text-secondary">
               {messages.notAnalyzedDescription}
             </p>
           </div>
@@ -480,7 +480,7 @@ export function FindingsPane({
             type="button"
             onClick={onAnalyze}
             disabled={!documentId || !hasClauses || isAnalyzing}
-            className="inline-flex items-center rounded-md bg-accent-primary px-4 py-2 text-xs font-semibold text-text-inverse hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center rounded-md bg-accent-primary px-4 py-2 text-[13px] font-semibold text-text-inverse hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isAnalyzing ? messages.analyzingButton : messages.analyzeButton}
           </button>
@@ -490,14 +490,14 @@ export function FindingsPane({
       {/* 5. Zero Findings State */}
       {status === "succeeded" && findings.length === 0 ? (
         <div className="mt-4 space-y-4 rounded-md border border-border-default bg-surface-subtle p-6 text-center my-auto">
-          <div className="rounded border border-border-default bg-surface-panel p-3 text-xs font-semibold text-text-primary">
+          <div className="rounded border border-border-default bg-surface-panel p-3 text-[13px] font-semibold text-text-primary">
             {playbookUsed === "saved" ? messages.playbookUsedSaved : messages.playbookUsedDefaults}
           </div>
           <div className="rounded-md border border-border-default bg-surface-canvas p-4 text-center">
-            <p className="text-sm font-medium text-text-primary">
+            <p className="text-[15px] font-medium text-text-primary">
               {messages.noFindings}
             </p>
-            <p className="mt-2 text-xs text-text-muted">
+            <p className="mt-2 text-[13px] text-text-muted">
               {messages.prioritizationNotice}
             </p>
           </div>
@@ -506,11 +506,11 @@ export function FindingsPane({
 
       {/* 6. Results State */}
       {findings.length > 0 && status !== "running" ? (
-        <div className="mt-4 space-y-4 flex-1 overflow-y-auto pr-1">
+        <div className="mt-4 space-y-4 flex-1 lg:overflow-y-auto pr-1">
           {/* Header Summary Strip: proportional horizontal bar + counts */}
           <div className="space-y-3 rounded-md border border-border-default bg-surface-subtle p-3.5 sm:p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-text-primary">
+              <span className="text-[13px] font-semibold text-text-primary">
                 {playbookUsed === "saved" ? messages.playbookUsedSaved : messages.playbookUsedDefaults}
               </span>
             </div>
@@ -564,7 +564,7 @@ export function FindingsPane({
                 return (
                   <span
                     key={sev}
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${getSeverityChipStyles(
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${getSeverityChipStyles(
                       sev,
                     )}`}
                   >
@@ -578,7 +578,7 @@ export function FindingsPane({
             </div>
 
             {factsSummary ? (
-              <div className="pt-2 border-t border-border-subtle text-xs space-y-0.5">
+              <div className="pt-2 border-t border-border-subtle text-[13px] space-y-0.5">
                 <p className="text-text-secondary">
                   {(messages.factsSummaryLine ?? "")
                     .replace("{extracted}", String(factsSummary.verified_clauses))
@@ -606,7 +606,7 @@ export function FindingsPane({
               </div>
             ) : null}
 
-            <p className="text-[11px] text-text-muted">
+            <p className="text-[13px] text-text-muted">
               {messages.prioritizationNotice}
             </p>
           </div>
@@ -738,7 +738,7 @@ export function FindingsPane({
                     <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
                       {/* Severity Label + Icon */}
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${getSeverityChipStyles(
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${getSeverityChipStyles(
                           finding.severity,
                         )}`}
                       >
@@ -748,23 +748,23 @@ export function FindingsPane({
 
                       {/* Page references */}
                       {pageNumbers.length > 0 ? (
-                        <span className="inline-flex items-center rounded border border-border-default bg-surface-panel px-2 py-0.5 text-xs font-semibold text-text-secondary">
+                        <span className="inline-flex items-center rounded border border-border-default bg-surface-panel px-2 py-0.5 text-[13px] font-semibold text-text-secondary">
                           {messages.pageLabel} {pageNumbers.join(", ")}
                         </span>
                       ) : null}
                     </div>
 
-                    {/* Stronger Title (weight 600) & Vs Line */}
-                    <h3 className="text-sm font-semibold text-text-primary leading-snug">
+                    {/* Stronger Title (17-18px, weight 600) & Vs Line */}
+                    <h3 className="text-[17px] font-semibold text-text-primary leading-snug">
                       {text.title}
                     </h3>
-                    <p className="mt-1 text-xs font-medium text-text-secondary">
+                    <p className="mt-1 text-[15px] leading-[1.6] font-medium text-text-secondary">
                       {text.vsLine}
                     </p>
 
                     {/* Financial Consequence (if known) */}
                     {text.financialConsequence ? (
-                      <p className="mt-1.5 text-xs font-semibold text-text-warning">
+                      <p className="mt-1.5 text-[15px] leading-[1.6] font-semibold text-text-warning">
                         {text.financialConsequence}
                       </p>
                     ) : null}
@@ -776,7 +776,7 @@ export function FindingsPane({
                       <button
                         type="button"
                         onClick={() => toggleLawyer(finding.id)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100 transition-colors focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[13px] font-semibold text-amber-900 hover:bg-amber-100 transition-colors focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                       >
                         <svg
                           aria-hidden="true"
@@ -792,8 +792,8 @@ export function FindingsPane({
                       </button>
 
                       {isLawyerExpanded && findingObj.lawyer_review_reasons.length > 0 ? (
-                        <div className="mt-2 rounded-md border border-amber-200 bg-amber-50/60 p-2.5 text-xs text-amber-900">
-                          <ul className="list-disc pl-4 space-y-1 text-[11px]">
+                        <div className="mt-2 rounded-md border border-amber-200 bg-amber-50/60 p-2.5 text-[13px] text-amber-900">
+                          <ul className="list-disc pl-4 space-y-1 text-[13px] leading-[1.6]">
                             {findingObj.lawyer_review_reasons
                               .map(
                                 (r) =>
@@ -818,13 +818,13 @@ export function FindingsPane({
                       <button
                         type="button"
                         onClick={() => toggleWhy(finding.id)}
-                        className="flex w-full items-center justify-between text-left text-xs font-semibold text-text-primary hover:text-accent-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                        className="flex w-full items-center justify-between text-left text-[15px] font-semibold text-text-primary hover:text-accent-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                       >
                         <span>{messages.whyThisMatters}</span>
                         <ChevronIcon isExpanded={isWhyExpanded} />
                       </button>
                       {isWhyExpanded ? (
-                        <div className="mt-1.5 text-xs leading-relaxed text-text-secondary">
+                        <div className="mt-1.5 text-[15px] leading-[1.6] text-text-secondary">
                           <p>{text.reason}</p>
                           {text.uncertainty ? (
                             <p className="mt-1 text-text-warning">{text.uncertainty}</p>
@@ -838,14 +838,14 @@ export function FindingsPane({
                       <button
                         type="button"
                         onClick={() => toggleAsk(finding.id)}
-                        className="flex w-full items-center justify-between text-left text-xs font-semibold text-text-primary hover:text-accent-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                        className="flex w-full items-center justify-between text-left text-[15px] font-semibold text-text-primary hover:text-accent-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                       >
                         <span>{messages.whatToAskFor}</span>
                         <ChevronIcon isExpanded={isAskExpanded} />
                       </button>
                       {isAskExpanded ? (
                         <div className="mt-1.5 space-y-2">
-                          <p className="text-xs leading-relaxed text-text-secondary">
+                          <p className="text-[15px] leading-[1.6] text-text-secondary">
                             {text.recommendation}
                           </p>
                         </div>
@@ -857,15 +857,15 @@ export function FindingsPane({
                       <button
                         type="button"
                         onClick={() => toggleSuggested(finding.id)}
-                        className="flex w-full items-center justify-between text-left text-xs font-semibold text-text-primary hover:text-accent-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                        className="flex w-full items-center justify-between text-left text-[15px] font-semibold text-text-primary hover:text-accent-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                       >
                         <span>{messages.suggestedWordingTitle}</span>
                         <ChevronIcon isExpanded={isSuggestedExpanded} />
                       </button>
                       {isSuggestedExpanded ? (
-                        <div className="mt-1.5 rounded-md border border-border-default bg-surface-subtle p-2.5 space-y-2">
+                        <div className="mt-1.5 rounded-md border border-border-default bg-surface-subtle p-3 space-y-2">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold text-text-primary">
+                            <span className="text-[15px] font-semibold text-text-primary">
                               {messages.suggestedWordingTitle}
                             </span>
                             <CopyButton
@@ -875,14 +875,14 @@ export function FindingsPane({
                             />
                           </div>
                           {getSuggestedWordingNote(findingObj, playbook) ? (
-                            <p className="text-[11px] text-text-muted">
+                            <p className="text-[13px] leading-[1.6] text-text-muted">
                               {getSuggestedWordingNote(findingObj, playbook)}
                             </p>
                           ) : null}
-                          <div className="font-serif-contract text-xs text-text-primary bg-surface-canvas p-2.5 rounded border border-border-subtle whitespace-pre-wrap select-all leading-relaxed">
+                          <div className="font-serif-contract text-[15px] text-text-primary bg-surface-canvas p-3 rounded border border-border-subtle whitespace-pre-wrap select-all leading-[1.6]">
                             {getSuggestedWording(findingObj, playbook)}
                           </div>
-                          <p className="text-[11px] text-text-muted">
+                          <p className="text-[13px] leading-[1.6] text-text-muted">
                             {messages.starterDraftDisclaimer}
                             {finding.lawyer_review ? ` ${messages.lawyerReviewNote}` : ""}
                           </p>
@@ -896,7 +896,7 @@ export function FindingsPane({
                         <button
                           type="button"
                           onClick={() => toggleEvidence(finding.id)}
-                          className="flex w-full items-center justify-between text-left text-xs font-semibold text-text-secondary hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                          className="flex w-full items-center justify-between text-left text-[15px] font-semibold text-text-secondary hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                         >
                           <span>{messages.evidenceTitle}</span>
                           <ChevronIcon isExpanded={isEvidenceExpanded} />
@@ -920,12 +920,12 @@ export function FindingsPane({
                                 }}
                                 className="cursor-pointer border-l-2 border-accent-primary bg-surface-panel hover:bg-accent-soft/60 rounded-r-md p-2.5 transition-colors focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                               >
-                                <div className="mb-1 flex items-center justify-between">
-                                  <span className="inline-flex items-center rounded-sm border border-border-default bg-surface-subtle px-1.5 py-0.5 text-[10px] font-semibold text-text-secondary">
+                                <div className="mb-1.5 flex items-center justify-between">
+                                  <span className="inline-flex items-center rounded-sm border border-border-default bg-surface-subtle px-1.5 py-0.5 text-[13px] font-semibold text-text-secondary">
                                     {messages.pageLabel} {ev.page_number}
                                   </span>
                                 </div>
-                                <p className="font-serif-contract text-xs text-text-primary italic leading-relaxed">
+                                <p className="font-serif-contract text-[15px] text-text-primary italic leading-[1.6]">
                                   &ldquo;{ev.quote}&rdquo;
                                 </p>
                               </blockquote>
@@ -941,13 +941,13 @@ export function FindingsPane({
                         <button
                           type="button"
                           onClick={() => toggleDetails(finding.id)}
-                          className="flex w-full items-center justify-between text-left text-[11px] font-semibold text-text-muted hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                          className="flex w-full items-center justify-between text-left text-[15px] font-semibold text-text-muted hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                         >
                           <span>{messages.detailsUsed}</span>
                           <ChevronIcon isExpanded={isDetailsExpanded} />
                         </button>
                         {isDetailsExpanded ? (
-                          <div className="mt-1.5 space-y-1 rounded border border-border-subtle bg-surface-subtle p-2.5 font-mono text-[11px] text-text-secondary">
+                          <div className="mt-1.5 space-y-1 rounded border border-border-subtle bg-surface-subtle p-2.5 font-mono text-[13px] text-text-secondary">
                             {factsUsed.map(({ key, label, displayValue }) => (
                               <div key={key} className="flex justify-between gap-2">
                                 <span className="font-medium text-text-muted">{label}:</span>
@@ -969,7 +969,7 @@ export function FindingsPane({
             <button
               type="button"
               onClick={() => setIsClientMessageExpanded(!isClientMessageExpanded)}
-              className="flex w-full items-center justify-between p-3.5 text-left text-xs font-semibold text-text-primary hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+              className="flex w-full items-center justify-between p-3.5 text-left text-[15px] font-semibold text-text-primary hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
             >
               <span>{messages.draftMessageTitle}</span>
               <ChevronIcon isExpanded={isClientMessageExpanded} />
@@ -977,7 +977,7 @@ export function FindingsPane({
             {isClientMessageExpanded ? (
               <div className="border-t border-border-subtle p-3.5 space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-text-secondary">
+                  <p className="text-[13px] leading-[1.6] text-text-secondary">
                     {messages.draftMessageDescription}
                   </p>
                   <CopyButton
@@ -990,9 +990,9 @@ export function FindingsPane({
                   readOnly
                   rows={12}
                   value={buildClientDraftMessage(domainFindings, playbook)}
-                  className="w-full rounded border border-border-default bg-surface-subtle p-2.5 font-mono text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-primary resize-y"
+                  className="w-full rounded border border-border-default bg-surface-subtle p-2.5 font-mono text-[13px] leading-[1.6] text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-primary resize-y"
                 />
-                <p className="text-[11px] text-text-muted">
+                <p className="text-[13px] leading-[1.6] text-text-muted">
                   {messages.draftMessageDisclaimer}
                 </p>
               </div>
