@@ -89,60 +89,68 @@ export function PlaybookPane({
   return (
     <section
       aria-label={messages.title}
-      className="flex flex-col lg:h-full rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6 lg:overflow-hidden"
+      className="flex flex-col lg:h-full rounded-lg border border-border-default bg-surface-panel lg:overflow-hidden"
     >
-      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
-        <h2 className="text-base font-semibold text-text-primary">{messages.title}</h2>
-        <span
-          className={`inline-flex items-center rounded border px-2 py-0.5 text-[13px] font-semibold ${statusBadge.cls}`}
-        >
-          {statusBadge.label}
-        </span>
+      <div className="shrink-0 p-4 sm:p-6 pb-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
+          <h2 className="text-base font-semibold text-text-primary">{messages.title}</h2>
+          <span
+            className={`inline-flex items-center rounded border px-2 py-0.5 text-[13px] font-semibold ${statusBadge.cls}`}
+          >
+            {statusBadge.label}
+          </span>
+        </div>
+
+        <div className="mt-3 rounded-md border border-border-warning bg-surface-warning px-3 py-2 text-[13px] leading-[1.6] font-medium text-text-warning">
+          {messages.starterNote}
+        </div>
+
+        {!documentId ? (
+          <div className="mt-3 rounded-md border border-border-subtle bg-surface-subtle px-3 py-2.5 text-[13px] leading-[1.6] text-text-secondary">
+            {messages.noDocumentNotice}
+          </div>
+        ) : null}
       </div>
 
-      <div className="shrink-0 mt-3 rounded-md border border-border-warning bg-surface-warning px-3 py-2 text-[13px] leading-[1.6] font-medium text-text-warning">
-        {messages.starterNote}
-      </div>
-
-      {!documentId ? (
-        <div className="shrink-0 mt-3 rounded-md border border-border-subtle bg-surface-subtle px-3 py-2.5 text-[13px] leading-[1.6] text-text-secondary">
-          {messages.noDocumentNotice}
-        </div>
-      ) : null}
-
-      {loading ? (
-        <div
-          role="status"
-          aria-live="polite"
-          className="mt-4 rounded-md border border-border-subtle bg-surface-subtle p-4 text-sm text-text-secondary my-auto"
-        >
-          {messages.loadingState}
-        </div>
-      ) : (
-        <div className="flex-1 lg:overflow-y-auto pr-1">
-          {loadError ? (
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col flex-1 lg:min-h-0"
+        noValidate
+      >
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
             <div
-              role="alert"
-              className="mt-4 rounded-md border border-border-danger bg-surface-danger p-4"
+              role="status"
+              aria-live="polite"
+              className="w-full rounded-md border border-border-subtle bg-surface-subtle p-4 text-sm text-text-secondary text-center"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm font-medium text-text-danger">
-                  {messages.loadErrorTitle}
-                </p>
-                {onRetryLoad ? (
-                  <button
-                    type="button"
-                    onClick={onRetryLoad}
-                    className="rounded-md border border-border-danger bg-surface-panel px-3 py-1.5 text-[13px] font-semibold text-text-danger hover:bg-surface-subtle"
-                  >
-                    {messages.retryButton}
-                  </button>
-                ) : null}
-              </div>
+              {messages.loadingState}
             </div>
-          ) : null}
-
-          <form onSubmit={handleSubmit} className="mt-4 space-y-5" noValidate>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 lg:overflow-y-auto px-4 sm:px-6 py-4 space-y-5">
+              {loadError ? (
+                <div
+                  role="alert"
+                  className="rounded-md border border-border-danger bg-surface-danger p-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-text-danger">
+                      {messages.loadErrorTitle}
+                    </p>
+                    {onRetryLoad ? (
+                      <button
+                        type="button"
+                        onClick={onRetryLoad}
+                        className="rounded-md border border-border-danger bg-surface-panel px-3 py-1.5 text-[13px] font-semibold text-text-danger hover:bg-surface-subtle"
+                      >
+                        {messages.retryButton}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             {/* 1. Liability cap */}
             <fieldset className="space-y-3 rounded-md border border-border-subtle bg-surface-canvas p-3.5">
               <legend className="px-1 text-sm font-semibold text-text-primary">
@@ -499,144 +507,150 @@ export function PlaybookPane({
               </div>
             </fieldset>
 
-            {/* Save status messages */}
-            {saveStatus === "error" ? (
-              <div
-                role="alert"
-                className="rounded-md border border-border-danger bg-surface-danger px-3 py-2 text-[13px] font-medium text-text-danger"
-              >
-                {playbookErrorKind === "failed"
-                  ? messages.saveFailed
-                  : messages.saveErrorSummary}
-              </div>
-            ) : null}
+            </div>
 
-            {saveStatus === "saved" && !isDirty ? (
-              <div
-                role="status"
-                aria-live="polite"
-                className="flex items-center gap-2 rounded-md border border-border-success bg-surface-success px-3 py-2 text-[13px] font-medium text-text-success"
-              >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="h-4 w-4 shrink-0"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span>{messages.saveSuccess}</span>
-              </div>
-            ) : null}
-
-            {/* Actions */}
-            <div className="flex flex-col gap-3 border-t border-border-subtle pt-4">
-              <button
-                type="submit"
-                disabled={!documentId || loading || Boolean(loadError) || saveStatus === "saving"}
-                className="w-full rounded-md bg-accent-primary px-4 py-2.5 text-sm font-semibold text-text-inverse hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:border disabled:border-border-default disabled:bg-surface-subtle disabled:text-text-secondary"
-              >
-                {saveStatus === "saving" ? messages.savingButton : messages.saveButton}
-              </button>
-
-              <div className="space-y-3 rounded-md border border-border-default bg-surface-subtle p-3.5">
-                {/* Gemini Free-tier Privacy Notice */}
-                <div className="rounded border border-border-warning bg-surface-warning p-2.5 text-[13px] leading-[1.6] text-text-warning">
-                  <p>{messages.extractNotice}</p>
-                </div>
-
-                {/* Step indicator while running */}
-                {isAnalyzingContract ? (
-                  <div
-                    role="status"
-                    aria-live="polite"
-                    className="space-y-2 rounded-md border border-border-info bg-surface-info p-3 text-center"
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      <svg
-                        className="h-4 w-4 animate-spin text-text-info"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      <p className="text-[13px] font-semibold text-text-info">
-                        {analysisStep === 1
-                          ? messages.stepReadingClauses
-                          : messages.stepCheckingRisks}
-                      </p>
-                    </div>
-                    <p className="text-[13px] text-text-secondary">
-                      {messages.stepTimeEstimate}
-                    </p>
-                  </div>
-                ) : null}
-
-                {/* Error message and Retry */}
-                {analysisError ? (
-                  <div
-                    role="alert"
-                    className="space-y-2 rounded-md border border-border-danger bg-surface-danger p-3 text-left"
-                  >
-                    <p className="text-[13px] font-semibold text-text-danger">
-                      {analysisError}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={onRetryAnalysis ?? onAnalyzeContract}
-                      className="inline-flex items-center rounded border border-border-danger bg-surface-panel px-2.5 py-1 text-[13px] font-semibold text-text-danger hover:bg-surface-subtle"
-                    >
-                      {messages.retryButton}
-                    </button>
-                  </div>
-                ) : null}
-
-                <p className="text-[13px] leading-[1.6] text-text-secondary">
-                  {messages.analyzeHelperLine ?? messages.analyzeHelper}
-                </p>
-
-                {/* Primary Analyze Contract Button */}
-                <button
-                  type="button"
-                  onClick={onAnalyzeContract ?? onExtractClauses}
-                  disabled={
-                    !documentId ||
-                    Boolean(loadError) ||
-                    isAnalyzingContract ||
-                    isExtracting ||
-                    isAnalyzingRisks
-                  }
-                  className="w-full rounded-md bg-accent-primary px-4 py-2.5 text-sm font-semibold text-text-inverse hover:bg-accent-primary-hover shadow-xs focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isAnalyzingContract
-                    ? analysisStep === 1
-                      ? messages.stepReadingClauses
-                      : messages.stepCheckingRisks
-                    : messages.analyzeContractButton ?? messages.analyzeButton}
-                </button>
+            {/* Privacy notice directly above the pinned action bar */}
+            <div className="shrink-0 px-4 sm:px-6 pb-2 pt-1 bg-surface-panel">
+              <div className="rounded border border-border-warning bg-surface-warning px-3 py-1.5 text-[12px] leading-snug text-text-warning">
+                <p>{messages.extractNotice}</p>
               </div>
             </div>
-          </form>
+          </>
+        )}
+
+        {/* Pinned Bottom Action Bar */}
+        <div className="sticky bottom-0 z-10 shrink-0 bg-surface-panel bg-white border-t border-border-default p-3 sm:p-4 rounded-b-lg space-y-3">
+          {/* Save status messages */}
+          {saveStatus === "error" ? (
+            <div
+              role="alert"
+              className="rounded-md border border-border-danger bg-surface-danger px-3 py-2 text-[13px] font-medium text-text-danger"
+            >
+              {playbookErrorKind === "failed"
+                ? messages.saveFailed
+                : messages.saveErrorSummary}
+            </div>
+          ) : null}
+
+          {saveStatus === "saved" && !isDirty ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex items-center gap-2 rounded-md border border-border-success bg-surface-success px-3 py-2 text-[13px] font-medium text-text-success"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="h-4 w-4 shrink-0"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span>{messages.saveSuccess}</span>
+            </div>
+          ) : null}
+
+          {/* Step indicator while running */}
+          {isAnalyzingContract ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="space-y-2 rounded-md border border-border-info bg-surface-info p-3 text-center"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <svg
+                  className="h-4 w-4 animate-spin text-text-info"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <p className="text-[13px] font-semibold text-text-info">
+                  {analysisStep === 1
+                    ? messages.stepReadingClauses
+                    : messages.stepCheckingRisks}
+                </p>
+              </div>
+              <p className="text-[13px] text-text-secondary">
+                {messages.stepTimeEstimate}
+              </p>
+            </div>
+          ) : null}
+
+          {/* Error message and Retry */}
+          {analysisError ? (
+            <div
+              role="alert"
+              className="space-y-2 rounded-md border border-border-danger bg-surface-danger p-3 text-left"
+            >
+              <p className="text-[13px] font-semibold text-text-danger">
+                {analysisError}
+              </p>
+              <button
+                type="button"
+                onClick={onRetryAnalysis ?? onAnalyzeContract}
+                className="inline-flex items-center rounded border border-border-danger bg-surface-panel px-2.5 py-1 text-[13px] font-semibold text-text-danger hover:bg-surface-subtle"
+              >
+                {messages.retryButton}
+              </button>
+            </div>
+          ) : null}
+
+          {/* Helper line */}
+          <p className="text-[13px] leading-[1.6] text-text-secondary">
+            {messages.analyzeHelperLine ?? messages.analyzeHelper}
+          </p>
+
+          {/* Two Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+            <button
+              type="submit"
+              disabled={!documentId || loading || Boolean(loadError) || saveStatus === "saving"}
+              className="flex-1 rounded-md border border-border-strong bg-surface-panel px-4 py-2.5 text-sm font-semibold text-text-primary hover:bg-surface-subtle shadow-xs focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none disabled:cursor-not-allowed disabled:border-border-subtle disabled:bg-surface-subtle disabled:text-text-muted"
+            >
+              {saveStatus === "saving" ? messages.savingButton : messages.saveButton}
+            </button>
+
+            <button
+              type="button"
+              onClick={onAnalyzeContract ?? onExtractClauses}
+              disabled={
+                !documentId ||
+                loading ||
+                Boolean(loadError) ||
+                isAnalyzingContract ||
+                isExtracting ||
+                isAnalyzingRisks
+              }
+              className="flex-1 rounded-md bg-accent-primary px-4 py-2.5 text-sm font-semibold text-text-inverse hover:bg-accent-primary-hover shadow-xs focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isAnalyzingContract
+                ? analysisStep === 1
+                  ? messages.stepReadingClauses
+                  : messages.stepCheckingRisks
+                : messages.analyzeContractButton ?? messages.analyzeButton}
+            </button>
+          </div>
         </div>
-      )}
+      </form>
     </section>
   );
 }
