@@ -81,9 +81,6 @@ describe("Phase 5: Client Draft Message & Suggested Wording", () => {
   describe("Suggested wording cleanliness", () => {
     it("ensures no draft body contains annotations like 'replacing' or 'proposed'", () => {
       const testFinding: Finding = {
-        id: "finding-test-1",
-        document_id: "doc-1",
-        run_id: "run-1",
         rule_id: "COMBO-1",
         rule_version: "2026.11-rules.v1",
         source: "builtin",
@@ -91,6 +88,8 @@ describe("Phase 5: Client Draft Message & Suggested Wording", () => {
         priority: 95,
         clause_ids: ["c-1", "c-2"],
         evidence: [],
+        lawyer_review: false,
+        lawyer_review_reasons: [],
         params: {
           days_to_pay: 90,
           playbook_max_days: 30,
@@ -107,12 +106,8 @@ describe("Phase 5: Client Draft Message & Suggested Wording", () => {
         expect(wording).not.toMatch(/\(replacing[^\)]*\)/i);
       }
     });
-
     it("provides separate small note above the clause when contract differs from playbook", () => {
       const findingWithDiscrepancy: Finding = {
-        id: "f-discrepancy",
-        document_id: "doc-1",
-        run_id: "run-1",
         rule_id: "PAY-1",
         rule_version: "2026.11-rules.v1",
         source: "builtin",
@@ -120,6 +115,8 @@ describe("Phase 5: Client Draft Message & Suggested Wording", () => {
         priority: 60,
         clause_ids: ["c-1"],
         evidence: [],
+        lawyer_review: false,
+        lawyer_review_reasons: [],
         params: {
           days_to_pay: 60,
           playbook_max_days: 30,
