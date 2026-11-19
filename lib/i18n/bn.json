@@ -5,10 +5,16 @@
   },
   "header": {
     "brand": "চুক্তি AI",
-    "subtitle": "চুক্তি সুরক্ষা সহায়ক",
+    "subtitle": "ফ্রিল্যান্সারদের জন্য চুক্তি পর্যালোচনা",
     "languageLabel": "ভাষা",
     "langEn": "EN",
     "langBn": "বাংলা"
+  },
+  "howItWorks": {
+    "title": "কীভাবে কাজ করে",
+    "step1": "টেক্সট PDF আপলোড করুন।",
+    "step2": "আপনার ৫টি পছন্দ নির্ধারণ করুন।",
+    "step3": "প্রমাণ হিসেবে চুক্তির নিজস্ব শব্দসহ ঝুঁকি পর্যালোচনা করুন"
   },
   "tabs": {
     "groupLabel": "কাজের অংশসমূহ",
@@ -31,6 +37,9 @@
     "uploadingProgressLabel": "আপলোডের অগ্রগতি",
     "processingServer": "PDF পৃষ্ঠা পড়া ও টেক্সট বিন্যাস করা হচ্ছে...",
     "loadingExistingTitle": "সংরক্ষিত চুক্তিপত্র লোড হচ্ছে...",
+    "loadExistingErrorTitle": "সংরক্ষিত চুক্তিপত্রটি খোলা সম্ভব হয়নি",
+    "retryButton": "আবার চেষ্টা করুন",
+    "startOver": "নতুন করে শুরু করুন",
     "errorBadge": "আপলোড ত্রুটি",
     "tryAgain": "অন্য ফাইল বাছাই করুন",
     "uploadAnother": "নতুন PDF আপলোড করুন",

@@ -68,6 +68,14 @@ export function ContractWorkspace() {
   const [uploadingFilename, setUploadingFilename] = useState("");
   const [docError, setDocError] = useState<DocumentUploadError | null>(null);
   const [documentData, setDocumentData] = useState<DocumentResponsePayload | null>(null);
+  const [isLoadExistingError, setIsLoadExistingError] = useState(false);
+  const [initialDocId, setInitialDocId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const id = new URLSearchParams(window.location.search).get("documentId");
+      if (id && UUID_PATTERN.test(id)) return id;
+    }
+    return null;
+  });
 
   const [playbook, setPlaybook] = useState<PlaybookPreferences>(() => cloneDefaultPlaybook());
   const [playbookLoading, setPlaybookLoading] = useState(() => {
@@ -398,79 +406,71 @@ export function ContractWorkspace() {
       char_start: clause.char_start,
       char_end: clause.char_end,
     });
-    // On mobile screens, automatically switch to document tab to show highlighted mark
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       setActiveMobileTab("document");
     }
   };
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const initialDocId = params.get("documentId");
-    if (!initialDocId || !UUID_PATTERN.test(initialDocId)) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadInitialDocument = async () => {
-      setDocStatus("loading_existing");
-      setDocError(null);
-      try {
-        const res = await fetch(`/api/documents/${initialDocId}`);
-        const json = (await res.json()) as DocumentResponsePayload & ApiErrorResponse;
-        if (cancelled) {
-          return;
-        }
-        if (!res.ok || !json.document) {
-          setDocStatus("error");
-          setDocError({
-            code: json.error?.code ?? "unknown",
-          });
-          return;
-        }
-        setDocumentData({ document: json.document, pages: json.pages });
-        setDocStatus("loaded");
-        await Promise.all([
-          loadPlaybookForDocument(json.document.id),
-          loadClausesForDocument(json.document.id),
-          loadFindingsForDocument(json.document.id),
-        ]);
-      } catch {
-        if (!cancelled) {
-          setDocStatus("error");
-          setDocError({
-            code: "unknown",
-          });
-        }
+  const loadInitialDocument = async (docId: string) => {
+    setDocStatus("loading_existing");
+    setDocError(null);
+    setIsLoadExistingError(false);
+    try {
+      const res = await fetch(`/api/documents/${docId}`);
+      const json = (await res.json()) as DocumentResponsePayload & ApiErrorResponse;
+      if (!res.ok || !json.document) {
+        setDocStatus("error");
+        setDocError({
+          code: json.error?.code ?? "unknown",
+        });
+        setIsLoadExistingError(true);
+        setPlaybookLoading(false);
+        return;
       }
-    };
+      setDocumentData({ document: json.document, pages: json.pages });
+      setDocStatus("loaded");
+      setActiveRightTab("findings");
+      await Promise.all([
+        loadPlaybookForDocument(json.document.id),
+        loadClausesForDocument(json.document.id),
+        loadFindingsForDocument(json.document.id),
+      ]);
+    } catch {
+      setDocStatus("error");
+      setDocError({
+        code: "unknown",
+      });
+      setIsLoadExistingError(true);
+      setPlaybookLoading(false);
+    }
+  };
 
-    void loadInitialDocument();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  useEffect(() => {
+    if (initialDocId) {
+      void loadInitialDocument(initialDocId);
+    }
+  }, [initialDocId]);
 
   const handleFileSelected = (file: File) => {
-    // Client pre-check before sending: reject oversized or non-PDF files without sending.
     const isPdfExt = file.name.trim().toLowerCase().endsWith(".pdf");
     const isPdfMime = file.type === "application/pdf";
     if (!isPdfExt && !isPdfMime) {
       setDocStatus("error");
       setDocError({ code: "not_pdf" });
+      setIsLoadExistingError(false);
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
       setDocStatus("error");
       setDocError({ code: "too_large" });
+      setIsLoadExistingError(false);
       return;
     }
 
     setDocStatus("uploading");
     setDocError(null);
+    setIsLoadExistingError(false);
     setUploadProgress(0);
     setUploadStage("uploading");
     setUploadingFilename(file.name);
@@ -487,6 +487,7 @@ export function ContractWorkspace() {
       setDocError({
         code: "timeout",
       });
+      setIsLoadExistingError(false);
     };
 
     xhr.onabort = () => {
@@ -494,6 +495,7 @@ export function ContractWorkspace() {
       setDocError({
         code: "network_error",
       });
+      setIsLoadExistingError(false);
     };
 
     xhr.upload.onprogress = (event) => {
@@ -526,6 +528,8 @@ export function ContractWorkspace() {
           pages: parsed.pages,
         });
         setDocStatus("loaded");
+        setIsLoadExistingError(false);
+        setActiveRightTab("findings");
         const nextUrl = new URL(window.location.href);
         nextUrl.searchParams.set("documentId", parsed.document.id);
         window.history.replaceState(null, "", nextUrl.toString());
@@ -539,6 +543,7 @@ export function ContractWorkspace() {
       setDocError({
         code: parsed?.error?.code ?? "unknown",
       });
+      setIsLoadExistingError(false);
     };
 
     xhr.onerror = () => {
@@ -546,6 +551,7 @@ export function ContractWorkspace() {
       setDocError({
         code: "network_error",
       });
+      setIsLoadExistingError(false);
     };
 
     xhr.send(formData);
@@ -555,9 +561,12 @@ export function ContractWorkspace() {
     setDocumentData(null);
     setDocStatus("idle");
     setDocError(null);
+    setIsLoadExistingError(false);
+    setInitialDocId(null);
     setUploadProgress(0);
     setUploadingFilename("");
     setPlaybook(cloneDefaultPlaybook());
+    setPlaybookLoading(false);
     setPlaybookLoadError(false);
     setHasServerSaved(false);
     setIsPlaybookDirty(false);
@@ -641,27 +650,52 @@ export function ContractWorkspace() {
     }
   };
 
+  const isUploaded = Boolean(documentData);
+
   return (
-    <div className="min-h-screen bg-surface-canvas text-text-primary">
+    <div className={`min-h-screen ${isUploaded ? "md:h-screen" : ""} flex flex-col bg-surface-canvas text-text-primary`}>
+      {/* 4. Notice Banner: Slim single line, softer color, small Notice label */}
       <div
         role="banner"
-        className="border-b border-border-warning bg-surface-warning px-4 py-2.5 text-sm text-text-warning"
+        className="shrink-0 border-b border-amber-200/50 bg-[#fffdf5] px-4 py-1.5 text-xs text-amber-950/80"
       >
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-2 text-center">
-          <span className="inline-flex items-center rounded border border-border-warning bg-surface-panel px-2 py-0.5 text-xs font-semibold text-text-warning">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-center gap-2 text-center px-4 sm:px-6">
+          <span className="inline-flex shrink-0 items-center rounded bg-amber-100/80 border border-amber-200/80 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-900">
             {messages.banner.badge}
           </span>
-          <span className="font-medium">{messages.banner.text}</span>
+          <span className="text-[11px] sm:text-xs text-slate-600 font-normal truncate sm:whitespace-normal">
+            {messages.banner.text}
+          </span>
         </div>
       </div>
 
-      <header className="border-b border-border-subtle bg-surface-panel">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-lg font-bold tracking-tight text-text-primary">
-              {messages.header.brand}
-            </h1>
-            <span className="text-xs font-medium text-text-secondary">
+      {/* Header: Brand with SVG mark, tagline (never overlaps/clips), language switcher */}
+      <header className="shrink-0 border-b border-border-subtle bg-surface-panel">
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2.5 px-6 sm:px-8 py-3 sm:py-3.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 shrink-0">
+              {/* 3. Brand: Small inline SVG logo mark (document with a check) */}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5 shrink-0 text-accent-primary"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <path d="m9 15 2 2 4-4" />
+              </svg>
+              <h1 className="text-lg font-bold tracking-tight text-text-primary whitespace-nowrap">
+                {messages.header.brand}
+              </h1>
+            </div>
+            <span className="hidden sm:inline-block text-border-default select-none">|</span>
+            {/* 1. Tagline: Never overlaps or clips at any width */}
+            <span className="text-xs sm:text-sm font-medium text-text-secondary leading-tight sm:leading-normal break-words">
               {messages.header.subtitle}
             </span>
           </div>
@@ -669,13 +703,13 @@ export function ContractWorkspace() {
           <div
             role="group"
             aria-label={messages.header.languageLabel}
-            className="inline-flex items-center rounded-md border border-border-default bg-surface-subtle p-0.5"
+            className="inline-flex shrink-0 items-center rounded-md border border-border-default bg-surface-subtle p-0.5"
           >
             <button
               type="button"
               aria-pressed={locale === "en"}
               onClick={() => setLocale("en")}
-              className={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+              className={`rounded px-2.5 py-1 text-xs font-semibold tab-transition ${
                 locale === "en"
                   ? "bg-accent-primary text-text-inverse"
                   : "text-text-secondary hover:text-text-primary"
@@ -687,7 +721,7 @@ export function ContractWorkspace() {
               type="button"
               aria-pressed={locale === "bn"}
               onClick={() => setLocale("bn")}
-              className={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+              className={`rounded px-2.5 py-1 text-xs font-semibold tab-transition ${
                 locale === "bn"
                   ? "bg-accent-primary text-text-inverse"
                   : "text-text-secondary hover:text-text-primary"
@@ -699,85 +733,189 @@ export function ContractWorkspace() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        {/* Mobile tabs (<768px) */}
-        <div
-          role="tablist"
-          aria-label={messages.tabs.groupLabel}
-          className="mb-4 grid grid-cols-2 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1 md:hidden"
-        >
-          <button
-            type="button"
-            role="tab"
-            id="tab-document"
-            aria-selected={activeMobileTab === "document"}
-            aria-controls="panel-document"
-            onClick={() => setActiveMobileTab("document")}
-            className={`rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
-              activeMobileTab === "document"
-                ? "bg-surface-panel text-text-primary shadow-xs"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            {messages.tabs.document}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="tab-playbook"
-            aria-selected={activeMobileTab === "playbook"}
-            aria-controls="panel-playbook"
-            onClick={() => setActiveMobileTab("playbook")}
-            className={`rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
-              activeMobileTab === "playbook"
-                ? "bg-surface-panel text-text-primary shadow-xs"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            {messages.tabs.playbook}
-          </button>
-        </div>
-
-        {/* Two-pane shell (>=768px) */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-12 md:items-start">
+      {/* 5. Layout: container max-width 1440px, 24-32px gutters */}
+      <main className="flex-1 min-h-0 flex flex-col mx-auto w-full max-w-[1440px] px-6 sm:px-8 py-4 sm:py-6">
+        {/* Mobile tabs (<768px) shown only after upload */}
+        {isUploaded ? (
           <div
-            id="panel-document"
-            role="tabpanel"
-            aria-labelledby="tab-document"
-            className={`md:col-span-7 md:block ${
-              activeMobileTab === "document" ? "block" : "hidden"
-            }`}
+            role="tablist"
+            aria-label={messages.tabs.groupLabel}
+            className="mb-4 grid grid-cols-2 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1 md:hidden shrink-0"
           >
-            <DocumentPane
-              messages={messages.documentPane}
-              locale={locale}
-              status={docStatus}
-              uploadProgress={uploadProgress}
-              uploadStage={uploadStage}
-              uploadingFilename={uploadingFilename}
-              error={docError}
-              documentData={documentData}
-              selectedClause={selectedClause}
-              highlightRanges={highlightRanges}
-              onFileSelected={handleFileSelected}
-              onReset={handleResetDocument}
-            />
+            <button
+              type="button"
+              role="tab"
+              id="tab-document"
+              aria-selected={activeMobileTab === "document"}
+              aria-controls="panel-document"
+              onClick={() => setActiveMobileTab("document")}
+              className={`rounded-md px-3 py-2 text-xs font-semibold tab-transition ${
+                activeMobileTab === "document"
+                  ? "bg-surface-panel text-text-primary shadow-xs"
+                  : "text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              {messages.tabs.document}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="tab-playbook"
+              aria-selected={activeMobileTab === "playbook"}
+              aria-controls="panel-playbook"
+              onClick={() => setActiveMobileTab("playbook")}
+              className={`rounded-md px-3 py-2 text-xs font-semibold tab-transition ${
+                activeMobileTab === "playbook"
+                  ? "bg-surface-panel text-text-primary shadow-xs"
+                  : "text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              {messages.tabs.findings}
+            </button>
           </div>
+        ) : null}
 
-          <div
-            id="panel-playbook"
-            role="tabpanel"
-            aria-labelledby="tab-playbook"
-            className={`md:col-span-5 md:block ${
-              activeMobileTab === "playbook" ? "block" : "hidden"
-            }`}
-          >
-            <div className="space-y-4">
-              {/* Right pane inner switch: Playbook | Clauses | Findings */}
+        {!isUploaded ? (
+          /* Empty state (no document): two columns.
+             Left: large upload dropzone.
+             Right: "How it works" with 3 steps plus the playbook. No large empty boxes. */
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 items-start">
+            {/* Left: Large upload dropzone */}
+            <div className="md:col-span-7 flex flex-col">
+              <DocumentPane
+                messages={messages.documentPane}
+                locale={locale}
+                status={docStatus}
+                uploadProgress={uploadProgress}
+                uploadStage={uploadStage}
+                uploadingFilename={uploadingFilename}
+                error={docError}
+                documentData={documentData}
+                selectedClause={selectedClause}
+                highlightRanges={highlightRanges}
+                onFileSelected={handleFileSelected}
+                onReset={handleResetDocument}
+                isLoadExistingError={isLoadExistingError}
+                onRetryLoadExisting={() => {
+                  if (initialDocId) void loadInitialDocument(initialDocId);
+                }}
+              />
+            </div>
+
+            {/* Right: "How it works" with 3 steps plus the playbook */}
+            <div className="md:col-span-5 flex flex-col space-y-5">
+              <div className="rounded-lg border border-border-default bg-surface-panel p-5 sm:p-6 space-y-3.5">
+                <h2 className="text-base font-semibold text-text-primary">
+                  {messages.howItWorks.title}
+                </h2>
+                <ol className="space-y-3">
+                  <li className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-primary text-xs font-bold">
+                      1
+                    </span>
+                    <span className="text-sm text-text-secondary leading-snug pt-0.5">
+                      {messages.howItWorks.step1}
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-primary text-xs font-bold">
+                      2
+                    </span>
+                    <span className="text-sm text-text-secondary leading-snug pt-0.5">
+                      {messages.howItWorks.step2}
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-primary text-xs font-bold">
+                      3
+                    </span>
+                    <span className="text-sm text-text-secondary leading-snug pt-0.5">
+                      {messages.howItWorks.step3}
+                    </span>
+                  </li>
+                </ol>
+              </div>
+
+              {/* Playbook */}
+              <PlaybookPane
+                messages={messages.playbookPane}
+                locale={locale}
+                documentId={null}
+                playbook={playbook}
+                loading={playbookLoading}
+                loadError={playbookLoadError}
+                onRetryLoad={() => {
+                  if (documentData?.document.id) {
+                    void loadPlaybookForDocument(documentData.document.id);
+                  }
+                }}
+                saveStatus={playbookSaveStatus}
+                hasServerSaved={hasServerSaved}
+                isDirty={isPlaybookDirty}
+                fieldErrors={playbookFieldErrors}
+                playbookErrorKind={playbookErrorKind}
+                onChange={handlePlaybookChange}
+                onSave={() => void handleSavePlaybook()}
+                onExtractClauses={handleExtractClauses}
+                isExtracting={extractStatus === "running"}
+                hasClauses={clauses.length > 0}
+                onAnalyzeRisks={handleAnalyzeRisks}
+                isAnalyzingRisks={findingsStatus === "running"}
+                onAnalyzeContract={handleAnalyzeContract}
+                isAnalyzingContract={analysisStep !== null}
+                analysisStep={analysisStep}
+                analysisError={analysisError}
+                onRetryAnalysis={handleAnalyzeContract}
+              />
+            </div>
+          </div>
+        ) : (
+          /* After upload: a full-height workspace, PDF pane and Findings pane side by side,
+             each scrolling inside itself, tab bar always visible. */
+          <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 items-stretch">
+            {/* Left: PDF pane */}
+            <div
+              id="panel-document"
+              role="tabpanel"
+              aria-labelledby="tab-document"
+              className={`md:col-span-7 h-full min-h-0 flex flex-col ${
+                activeMobileTab === "document" ? "flex" : "hidden md:flex"
+              }`}
+            >
+              <DocumentPane
+                messages={messages.documentPane}
+                locale={locale}
+                status={docStatus}
+                uploadProgress={uploadProgress}
+                uploadStage={uploadStage}
+                uploadingFilename={uploadingFilename}
+                error={docError}
+                documentData={documentData}
+                selectedClause={selectedClause}
+                highlightRanges={highlightRanges}
+                onFileSelected={handleFileSelected}
+                onReset={handleResetDocument}
+                isLoadExistingError={isLoadExistingError}
+                onRetryLoadExisting={() => {
+                  if (initialDocId) void loadInitialDocument(initialDocId);
+                }}
+              />
+            </div>
+
+            {/* Right: Tab bar (always visible) + Active Tab Panel */}
+            <div
+              id="panel-playbook"
+              role="tabpanel"
+              aria-labelledby="tab-playbook"
+              className={`md:col-span-5 h-full min-h-0 flex flex-col ${
+                activeMobileTab === "playbook" ? "flex" : "hidden md:flex"
+              }`}
+            >
+              {/* Tab bar: Always visible */}
               <div
                 role="tablist"
                 aria-label={messages.tabs.rightPaneLabel}
-                className="grid grid-cols-3 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1"
+                className="shrink-0 mb-3 grid grid-cols-3 gap-1 rounded-lg border border-border-default bg-surface-subtle p-1"
               >
                 <button
                   type="button"
@@ -786,7 +924,7 @@ export function ContractWorkspace() {
                   aria-selected={activeRightTab === "playbook"}
                   aria-controls="panel-inner-playbook"
                   onClick={() => setActiveRightTab("playbook")}
-                  className={`rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`tab-transition rounded-md px-2 py-1.5 text-xs font-semibold ${
                     activeRightTab === "playbook"
                       ? "bg-surface-panel text-text-primary shadow-xs"
                       : "text-text-secondary hover:text-text-primary"
@@ -801,7 +939,7 @@ export function ContractWorkspace() {
                   aria-selected={activeRightTab === "clauses"}
                   aria-controls="panel-inner-clauses"
                   onClick={() => setActiveRightTab("clauses")}
-                  className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`tab-transition flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold ${
                     activeRightTab === "clauses"
                       ? "bg-surface-panel text-text-primary shadow-xs"
                       : "text-text-secondary hover:text-text-primary"
@@ -821,7 +959,7 @@ export function ContractWorkspace() {
                   aria-selected={activeRightTab === "findings"}
                   aria-controls="panel-inner-findings"
                   onClick={() => setActiveRightTab("findings")}
-                  className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`tab-transition flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold ${
                     activeRightTab === "findings"
                       ? "bg-surface-panel text-text-primary shadow-xs"
                       : "text-text-secondary hover:text-text-primary"
@@ -836,98 +974,103 @@ export function ContractWorkspace() {
                 </button>
               </div>
 
-              {/* Inner Tab Panels */}
-              {activeRightTab === "playbook" ? (
-                <div
-                  id="panel-inner-playbook"
-                  role="tabpanel"
-                  aria-labelledby="tab-inner-playbook"
-                >
-                  <PlaybookPane
-                    messages={messages.playbookPane}
-                    locale={locale}
-                    documentId={documentData?.document.id ?? null}
-                    playbook={playbook}
-                    loading={playbookLoading}
-                    loadError={playbookLoadError}
-                    onRetryLoad={() => {
-                      if (documentData?.document.id) {
-                        void loadPlaybookForDocument(documentData.document.id);
+              {/* Active Tab Panel scrolling inside itself */}
+              <div className="flex-1 min-h-0 overflow-hidden">
+                {activeRightTab === "playbook" ? (
+                  <div
+                    id="panel-inner-playbook"
+                    role="tabpanel"
+                    aria-labelledby="tab-inner-playbook"
+                    className="h-full min-h-0"
+                  >
+                    <PlaybookPane
+                      messages={messages.playbookPane}
+                      locale={locale}
+                      documentId={documentData?.document.id ?? null}
+                      playbook={playbook}
+                      loading={playbookLoading}
+                      loadError={playbookLoadError}
+                      onRetryLoad={() => {
+                        if (documentData?.document.id) {
+                          void loadPlaybookForDocument(documentData.document.id);
+                        }
+                      }}
+                      saveStatus={playbookSaveStatus}
+                      hasServerSaved={hasServerSaved}
+                      isDirty={isPlaybookDirty}
+                      fieldErrors={playbookFieldErrors}
+                      playbookErrorKind={playbookErrorKind}
+                      onChange={handlePlaybookChange}
+                      onSave={() => void handleSavePlaybook()}
+                      onExtractClauses={handleExtractClauses}
+                      isExtracting={extractStatus === "running"}
+                      hasClauses={clauses.length > 0}
+                      onAnalyzeRisks={handleAnalyzeRisks}
+                      isAnalyzingRisks={findingsStatus === "running"}
+                      onAnalyzeContract={handleAnalyzeContract}
+                      isAnalyzingContract={analysisStep !== null}
+                      analysisStep={analysisStep}
+                      analysisError={analysisError}
+                      onRetryAnalysis={handleAnalyzeContract}
+                    />
+                  </div>
+                ) : activeRightTab === "clauses" ? (
+                  <div
+                    id="panel-inner-clauses"
+                    role="tabpanel"
+                    aria-labelledby="tab-inner-clauses"
+                    className="h-full min-h-0"
+                  >
+                    <ClausesPane
+                      messages={messages.clausesPane}
+                      locale={locale}
+                      documentId={documentData?.document.id ?? null}
+                      status={extractStatus}
+                      errorCode={extractError}
+                      runData={runData}
+                      clauses={clauses}
+                      selectedClauseId={selectedClause?.id ?? null}
+                      onSelectClause={handleSelectClause}
+                      onExtract={handleExtractClauses}
+                      isExtractDisabled={
+                        !documentData?.document.id ||
+                        Boolean(playbookLoadError) ||
+                        extractStatus === "running" ||
+                        analysisStep !== null
                       }
-                    }}
-                    saveStatus={playbookSaveStatus}
-                    hasServerSaved={hasServerSaved}
-                    isDirty={isPlaybookDirty}
-                    fieldErrors={playbookFieldErrors}
-                    playbookErrorKind={playbookErrorKind}
-                    onChange={handlePlaybookChange}
-                    onSave={() => void handleSavePlaybook()}
-                    onExtractClauses={handleExtractClauses}
-                    isExtracting={extractStatus === "running"}
-                    hasClauses={clauses.length > 0}
-                    onAnalyzeRisks={handleAnalyzeRisks}
-                    isAnalyzingRisks={findingsStatus === "running"}
-                    onAnalyzeContract={handleAnalyzeContract}
-                    isAnalyzingContract={analysisStep !== null}
-                    analysisStep={analysisStep}
-                    analysisError={analysisError}
-                    onRetryAnalysis={handleAnalyzeContract}
-                  />
-                </div>
-              ) : activeRightTab === "clauses" ? (
-                <div
-                  id="panel-inner-clauses"
-                  role="tabpanel"
-                  aria-labelledby="tab-inner-clauses"
-                >
-                  <ClausesPane
-                    messages={messages.clausesPane}
-                    locale={locale}
-                    documentId={documentData?.document.id ?? null}
-                    status={extractStatus}
-                    errorCode={extractError}
-                    runData={runData}
-                    clauses={clauses}
-                    selectedClauseId={selectedClause?.id ?? null}
-                    onSelectClause={handleSelectClause}
-                    onExtract={handleExtractClauses}
-                    isExtractDisabled={
-                      !documentData?.document.id ||
-                      Boolean(playbookLoadError) ||
-                      extractStatus === "running" ||
-                      analysisStep !== null
-                    }
-                  />
-                </div>
-              ) : (
-                <div
-                  id="panel-inner-findings"
-                  role="tabpanel"
-                  aria-labelledby="tab-inner-findings"
-                >
-                  <FindingsPane
-                    messages={messages.findingsPane}
-                    locale={locale}
-                    documentId={documentData?.document.id ?? null}
-                    status={findingsStatus}
-                    errorCode={findingsError}
-                    isStale={isPlaybookStale}
-                    findings={findings}
-                    playbookUsed={playbookUsed}
-                    hasClauses={clauses.length > 0}
-                    selectedFindingId={selectedFindingId}
-                    onSelectFinding={handleSelectFinding}
-                    onSelectEvidence={handleSelectEvidence}
-                    onAnalyze={handleAnalyzeContract}
-                    isAnalyzing={findingsStatus === "running" || analysisStep !== null}
-                    factsSummary={factsSummary}
-                    playbook={playbook}
-                  />
-                </div>
-              )}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    id="panel-inner-findings"
+                    role="tabpanel"
+                    aria-labelledby="tab-inner-findings"
+                    className="h-full min-h-0"
+                  >
+                    <FindingsPane
+                      messages={messages.findingsPane}
+                      locale={locale}
+                      documentId={documentData?.document.id ?? null}
+                      status={findingsStatus}
+                      errorCode={findingsError}
+                      isStale={isPlaybookStale}
+                      findings={findings}
+                      playbookUsed={playbookUsed}
+                      hasClauses={clauses.length > 0}
+                      selectedFindingId={selectedFindingId}
+                      onSelectFinding={handleSelectFinding}
+                      onSelectEvidence={handleSelectEvidence}
+                      onAnalyze={handleAnalyzeContract}
+                      isAnalyzing={findingsStatus === "running" || analysisStep !== null}
+                      factsSummary={factsSummary}
+                      playbook={playbook}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

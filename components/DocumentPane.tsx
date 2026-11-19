@@ -47,6 +47,8 @@ interface DocumentPaneProps {
   highlightRanges?: DocumentHighlightRange[] | null;
   onFileSelected: (file: File) => void;
   onReset: () => void;
+  isLoadExistingError?: boolean;
+  onRetryLoadExisting?: () => void;
 }
 
 export function DocumentPane({
@@ -62,6 +64,8 @@ export function DocumentPane({
   highlightRanges,
   onFileSelected,
   onReset,
+  isLoadExistingError = false,
+  onRetryLoadExisting,
 }: DocumentPaneProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -160,15 +164,15 @@ export function DocumentPane({
     return (
       <section
         aria-label={messages.extractedTextLabel}
-        className="flex flex-col rounded-lg border border-border-default bg-surface-panel"
+        className="flex flex-col h-full rounded-lg border border-border-default bg-surface-panel overflow-hidden"
       >
-        <div className="border-b border-border-subtle p-4 sm:p-5">
+        <div className="shrink-0 border-b border-border-subtle bg-surface-panel p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <span className="inline-flex items-center rounded border border-border-info bg-surface-info px-2 py-0.5 text-xs font-semibold text-text-info">
                 {messages.extractedTextLabel}
               </span>
-              <h2 className="mt-2 truncate text-base font-semibold text-text-primary">
+              <h2 className="mt-1.5 truncate text-base font-semibold text-text-primary">
                 {docMeta.original_filename}
               </h2>
               <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
@@ -196,7 +200,7 @@ export function DocumentPane({
           </div>
 
           {totalPages > 0 ? (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border-subtle bg-surface-subtle px-3 py-2">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border-subtle bg-surface-subtle px-3 py-2">
               <div className="flex items-center gap-2">
                 <label
                   htmlFor="page-jump-select"
@@ -240,19 +244,20 @@ export function DocumentPane({
           ) : null}
         </div>
 
-        <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4 sm:p-5">
+        {/* Paper pages scrollable container */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100/90 space-y-6">
           {pages.map((page) => (
             <article
               key={page.page_number}
               id={`contract-page-${page.page_number}`}
-              className="rounded-md border border-border-subtle bg-surface-canvas p-4"
+              className="paper-page rounded-sm p-6 sm:p-8 md:p-10 max-w-3xl mx-auto"
             >
-              <header className="mb-3 flex items-center justify-between border-b border-border-subtle pb-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              <header className="mb-4 flex items-center justify-between border-b border-border-subtle pb-2.5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
                   {messages.pageHeader} {page.page_number}
                 </h3>
               </header>
-              <div className="font-serif-contract whitespace-pre-wrap break-words text-[15px] leading-7 text-text-primary">
+              <div className="font-serif-contract whitespace-pre-wrap break-words text-[15px] leading-[1.6] text-text-primary">
                 {(() => {
                   if (page.text.length === 0) {
                     return messages.emptyPageText;
@@ -312,7 +317,7 @@ export function DocumentPane({
   return (
     <section
       aria-label={messages.title}
-      className="rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6"
+      className="flex flex-col h-full rounded-lg border border-border-default bg-surface-panel p-5 sm:p-6"
     >
       <div className="mb-4">
         <h2 className="text-base font-semibold text-text-primary">{messages.title}</h2>
@@ -322,8 +327,9 @@ export function DocumentPane({
         <div
           role="status"
           aria-live="polite"
-          className="rounded-md border border-border-default bg-surface-subtle p-6 text-center"
+          className="rounded-md border border-border-default bg-surface-subtle p-8 text-center my-auto"
         >
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-accent-primary border-t-transparent mb-3" />
           <p className="text-sm font-medium text-text-primary">
             {messages.loadingExistingTitle}
           </p>
@@ -334,7 +340,7 @@ export function DocumentPane({
         <div
           role="status"
           aria-live="polite"
-          className="rounded-md border border-border-info bg-surface-info p-5"
+          className="rounded-md border border-border-info bg-surface-info p-6 my-auto"
         >
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-text-info">{messages.uploadingTitle}</p>
@@ -364,7 +370,55 @@ export function DocumentPane({
         </div>
       ) : null}
 
-      {status === "error" && error ? (
+      {/* Load-failure state for saved contract (?documentId=) */}
+      {status === "error" && isLoadExistingError ? (
+        <div
+          role="alert"
+          className="my-auto rounded-lg border border-border-danger bg-surface-danger p-6 sm:p-8 text-center"
+        >
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-text-danger mb-3">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-6 w-6"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94 8.28 7.22Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-text-danger">
+            {messages.loadExistingErrorTitle}
+          </h3>
+          <p className="mt-1.5 text-xs text-text-secondary max-w-sm mx-auto">
+            {getUploadErrorMessage(error?.code, locale)}
+          </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            {onRetryLoadExisting ? (
+              <button
+                type="button"
+                onClick={onRetryLoadExisting}
+                className="rounded-md bg-accent-primary px-4 py-2 text-xs font-semibold text-text-inverse hover:bg-accent-primary-hover focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+              >
+                {messages.retryButton}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onReset}
+              className="rounded-md border border-border-default bg-surface-panel px-4 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-subtle hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+            >
+              {messages.startOver}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Standard upload error state */}
+      {status === "error" && !isLoadExistingError && error ? (
         <div
           role="alert"
           className="mb-4 rounded-md border border-border-danger bg-surface-danger p-4"
@@ -396,38 +450,41 @@ export function DocumentPane({
         </div>
       ) : null}
 
-      {status === "idle" || status === "error" ? (
+      {/* Idle / normal dropzone (shown when idle or on non-load-existing error) */}
+      {(status === "idle" || (status === "error" && !isLoadExistingError)) ? (
         <div
           role="region"
           aria-label={messages.dropzoneAriaLabel}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors sm:p-10 ${
+          className={`flex flex-1 flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 sm:p-12 text-center transition-colors ${
             isDragging
               ? "border-accent-primary bg-accent-soft"
-              : "border-border-strong bg-surface-subtle"
+              : "border-border-strong bg-surface-subtle/70 hover:bg-surface-subtle"
           }`}
         >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.75}
-            className="h-10 w-10 text-text-secondary"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m6.75 12-3-3m0 0-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-            />
-          </svg>
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-panel shadow-xs mb-3 text-accent-primary">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.75}
+              className="h-8 w-8"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m6.75 12-3-3m0 0-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+              />
+            </svg>
+          </div>
 
-          <h3 className="mt-3 text-base font-semibold text-text-primary">
+          <h3 className="text-base sm:text-lg font-semibold text-text-primary">
             {messages.emptyHeading}
           </h3>
-          <p className="mt-1.5 max-w-md text-sm text-text-secondary">
+          <p className="mt-1.5 max-w-sm text-sm text-text-secondary leading-relaxed">
             {messages.emptyDescription}
           </p>
 
@@ -445,13 +502,15 @@ export function DocumentPane({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="mt-5 inline-flex items-center rounded-md bg-accent-primary px-4 py-2.5 text-sm font-semibold text-text-inverse hover:bg-accent-primary-hover"
+            className="mt-6 inline-flex items-center rounded-md bg-accent-primary px-5 py-2.5 text-sm font-semibold text-text-inverse hover:bg-accent-primary-hover shadow-xs focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
           >
             {status === "error" ? messages.tryAgain : messages.chooseFileButton}
           </button>
 
-          <p className="mt-4 max-w-md text-xs text-text-muted">{messages.rulesNote}</p>
-          <p className="mt-2 max-w-md text-xs text-text-secondary">{messages.demoNotice}</p>
+          <div className="mt-6 max-w-sm space-y-1.5 border-t border-border-subtle pt-4 text-center">
+            <p className="text-xs text-text-muted">{messages.rulesNote}</p>
+            <p className="text-xs text-text-secondary">{messages.demoNotice}</p>
+          </div>
         </div>
       ) : null}
     </section>

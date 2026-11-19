@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Locale, Messages } from "@/lib/i18n";
 import { DEFAULT_PLAYBOOK, type PlaybookPreferences } from "@/lib/playbook/schema";
 import { buildClientDraftMessage, getSuggestedWording, getSuggestedWordingNote } from "@/lib/risk/drafts";
@@ -101,7 +101,23 @@ function CopyButton({
 }
 
 function SeverityIcon({ severity }: { severity: RiskSeverity }) {
-  if (severity === "critical" || severity === "high") {
+  if (severity === "critical") {
+    return (
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        className="h-3.5 w-3.5 shrink-0"
+      >
+        <path
+          fillRule="evenodd"
+          d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm-1-11a1 1 0 1 1 2 0v5a1 1 0 1 1-2 0V7Zm1 9a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Z"
+          clipRule="evenodd"
+        />
+      </svg>
+    );
+  }
+  if (severity === "high") {
     return (
       <svg
         aria-hidden="true"
@@ -112,6 +128,22 @@ function SeverityIcon({ severity }: { severity: RiskSeverity }) {
         <path
           fillRule="evenodd"
           d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 6a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 6Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+          clipRule="evenodd"
+        />
+      </svg>
+    );
+  }
+  if (severity === "medium") {
+    return (
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        className="h-3.5 w-3.5 shrink-0"
+      >
+        <path
+          fillRule="evenodd"
+          d="M10.362 1.015a.75.75 0 0 0-.724 0L3.138 4.382A.75.75 0 0 0 2.75 5.05v4.95c0 5.485 4.095 9.07 7.027 10.852a.75.75 0 0 0 .446 0c2.932-1.782 7.027-5.367 7.027-10.852V5.05a.75.75 0 0 0-.388-.668l-6.5-3.367ZM10 6a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 6Zm0 7a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
           clipRule="evenodd"
         />
       </svg>
@@ -131,6 +163,51 @@ function SeverityIcon({ severity }: { severity: RiskSeverity }) {
       />
     </svg>
   );
+}
+
+function ChevronIcon({ isExpanded }: { isExpanded: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ease-out ${
+        isExpanded ? "rotate-180" : ""
+      }`}
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function getSeverityChipStyles(severity: RiskSeverity): string {
+  switch (severity) {
+    case "critical":
+      return "bg-[#991b1b] text-white border border-[#7f1d1d] shadow-xs";
+    case "high":
+      return "bg-[#fff7ed] text-[#9a3412] border border-[#fed7aa]";
+    case "medium":
+      return "bg-[#fffbeb] text-[#78350f] border border-[#fde68a]";
+    case "low":
+      return "bg-[#f0f4f8] text-[#1e3a5f] border border-[#cbd5e1]";
+  }
+}
+
+function getFindingCardBorderAccent(severity: RiskSeverity): string {
+  switch (severity) {
+    case "critical":
+      return "border-l-4 border-l-[#991b1b]";
+    case "high":
+      return "border-l-4 border-l-[#ea580c]";
+    case "medium":
+      return "border-l-4 border-l-[#d97706]";
+    case "low":
+      return "border-l-4 border-l-[#64748b]";
+  }
 }
 
 export function FindingsPane({
@@ -153,18 +230,35 @@ export function FindingsPane({
   playbook = DEFAULT_PLAYBOOK,
 }: FindingsPaneProps) {
   const [isClientMessageExpanded, setIsClientMessageExpanded] = useState(false);
-  const [expandedWhyIds, setExpandedWhyIds] = useState<Set<string>>(
-    () => (initialExpandedAll ? new Set(findings.map((f) => f.id)) : new Set()),
-  );
-  const [expandedAskIds, setExpandedAskIds] = useState<Set<string>>(
-    () => (initialExpandedAll ? new Set(findings.map((f) => f.id)) : new Set()),
-  );
+
+  // Open "Why this matters" and "What to ask for" by default for the first finding only; collapse the rest.
+  const [expandedWhyIds, setExpandedWhyIds] = useState<Set<string>>(() => {
+    if (initialExpandedAll) return new Set(findings.map((f) => f.id));
+    return findings.length > 0 ? new Set([findings[0].id]) : new Set();
+  });
+  const [expandedAskIds, setExpandedAskIds] = useState<Set<string>>(() => {
+    if (initialExpandedAll) return new Set(findings.map((f) => f.id));
+    return findings.length > 0 ? new Set([findings[0].id]) : new Set();
+  });
   const [expandedDetailsIds, setExpandedDetailsIds] = useState<Set<string>>(
     () => (initialExpandedAll ? new Set(findings.map((f) => f.id)) : new Set()),
   );
   const [expandedEvidenceIds, setExpandedEvidenceIds] = useState<Set<string>>(
     () => (initialExpandedAll ? new Set(findings.map((f) => f.id)) : new Set()),
   );
+  const [expandedSuggestedIds, setExpandedSuggestedIds] = useState<Set<string>>(
+    () => (initialExpandedAll ? new Set(findings.map((f) => f.id)) : new Set()),
+  );
+  const [expandedLawyerIds, setExpandedLawyerIds] = useState<Set<string>>(
+    () => (initialExpandedAll ? new Set(findings.map((f) => f.id)) : new Set()),
+  );
+
+  useEffect(() => {
+    if (findings.length > 0 && expandedWhyIds.size === 0 && !initialExpandedAll) {
+      setExpandedWhyIds(new Set([findings[0].id]));
+      setExpandedAskIds(new Set([findings[0].id]));
+    }
+  }, [findings, initialExpandedAll, expandedWhyIds.size]);
 
   const toggleWhy = (id: string) => {
     setExpandedWhyIds((prev) => {
@@ -202,6 +296,24 @@ export function FindingsPane({
     });
   };
 
+  const toggleSuggested = (id: string) => {
+    setExpandedSuggestedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleLawyer = (id: string) => {
+    setExpandedLawyerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   // Severity count tally
   const countsBySeverity = {
     critical: findings.filter((f) => f.severity === "critical").length,
@@ -209,6 +321,8 @@ export function FindingsPane({
     medium: findings.filter((f) => f.severity === "medium").length,
     low: findings.filter((f) => f.severity === "low").length,
   };
+
+  const totalFindings = findings.length;
 
   const domainFindings: Finding[] = findings.map((f) => ({
     rule_id: f.rule_id as RuleId,
@@ -228,15 +342,11 @@ export function FindingsPane({
   return (
     <section
       aria-label={messages.tabTitle}
-      className="rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6"
+      className="flex flex-col h-full rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6"
     >
+      {/* Title without duplicate total chip */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
         <h2 className="text-base font-semibold text-text-primary">{messages.tabTitle}</h2>
-        {findings.length > 0 ? (
-          <span className="inline-flex items-center rounded border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-semibold text-text-secondary">
-            {findings.length}
-          </span>
-        ) : null}
       </div>
 
       {/* 1. Stale Notice Banner */}
@@ -273,7 +383,7 @@ export function FindingsPane({
         <div
           role="status"
           aria-live="polite"
-          className="mt-4 rounded-md border border-border-info bg-surface-info p-5 text-center"
+          className="mt-4 rounded-md border border-border-info bg-surface-info p-6 text-center my-auto"
         >
           <div className="flex items-center justify-center gap-3">
             <svg
@@ -342,14 +452,14 @@ export function FindingsPane({
 
       {/* 4. Not Analyzed State (Idle) */}
       {status === "idle" && findings.length === 0 ? (
-        <div className="mt-4 space-y-4 rounded-md border border-dashed border-border-strong bg-surface-subtle p-6 text-center">
+        <div className="mt-4 space-y-4 rounded-md border border-dashed border-border-strong bg-surface-subtle p-8 text-center my-auto">
           <svg
             aria-hidden="true"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth={1.75}
-            className="mx-auto h-9 w-9 text-text-secondary"
+            className="mx-auto h-10 w-10 text-text-secondary"
           >
             <path
               strokeLinecap="round"
@@ -379,7 +489,7 @@ export function FindingsPane({
 
       {/* 5. Zero Findings State */}
       {status === "succeeded" && findings.length === 0 ? (
-        <div className="mt-4 space-y-4 rounded-md border border-border-default bg-surface-subtle p-6 text-center">
+        <div className="mt-4 space-y-4 rounded-md border border-border-default bg-surface-subtle p-6 text-center my-auto">
           <div className="rounded border border-border-default bg-surface-panel p-3 text-xs font-semibold text-text-primary">
             {playbookUsed === "saved" ? messages.playbookUsedSaved : messages.playbookUsedDefaults}
           </div>
@@ -396,33 +506,67 @@ export function FindingsPane({
 
       {/* 6. Results State */}
       {findings.length > 0 && status !== "running" ? (
-        <div className="mt-4 space-y-5">
-          {/* Header Summary */}
-          <div className="space-y-2.5 rounded-md border border-border-default bg-surface-subtle p-3.5">
+        <div className="mt-4 space-y-4 flex-1 overflow-y-auto pr-1">
+          {/* Header Summary Strip: proportional horizontal bar + counts */}
+          <div className="space-y-3 rounded-md border border-border-default bg-surface-subtle p-3.5 sm:p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-semibold text-text-primary">
                 {playbookUsed === "saved" ? messages.playbookUsedSaved : messages.playbookUsedDefaults}
               </span>
-              <span className="text-xs font-medium text-text-secondary">
-                {messages.summaryTotal.replace("{count}", String(findings.length))}
-              </span>
             </div>
 
+            {/* Horizontal proportional bar */}
+            {totalFindings > 0 ? (
+              <div
+                className="h-2.5 w-full flex overflow-hidden rounded-full bg-slate-200"
+                role="progressbar"
+                aria-label="Severity distribution"
+                aria-valuemin={0}
+                aria-valuemax={totalFindings}
+                aria-valuenow={totalFindings}
+              >
+                {countsBySeverity.critical > 0 && (
+                  <div
+                    style={{ width: `${(countsBySeverity.critical / totalFindings) * 100}%` }}
+                    className="bg-[#991b1b] transition-[width] duration-300"
+                    title={`${messages.severityLabels.critical}: ${countsBySeverity.critical}`}
+                  />
+                )}
+                {countsBySeverity.high > 0 && (
+                  <div
+                    style={{ width: `${(countsBySeverity.high / totalFindings) * 100}%` }}
+                    className="bg-[#ea580c] transition-[width] duration-300"
+                    title={`${messages.severityLabels.high}: ${countsBySeverity.high}`}
+                  />
+                )}
+                {countsBySeverity.medium > 0 && (
+                  <div
+                    style={{ width: `${(countsBySeverity.medium / totalFindings) * 100}%` }}
+                    className="bg-[#d97706] transition-[width] duration-300"
+                    title={`${messages.severityLabels.medium}: ${countsBySeverity.medium}`}
+                  />
+                )}
+                {countsBySeverity.low > 0 && (
+                  <div
+                    style={{ width: `${(countsBySeverity.low / totalFindings) * 100}%` }}
+                    className="bg-[#64748b] transition-[width] duration-300"
+                    title={`${messages.severityLabels.low}: ${countsBySeverity.low}`}
+                  />
+                )}
+              </div>
+            ) : null}
+
             {/* Severity summary counts */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border-subtle">
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
               {(["critical", "high", "medium", "low"] as const).map((sev) => {
                 const count = countsBySeverity[sev];
                 if (count === 0) return null;
                 return (
                   <span
                     key={sev}
-                    className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-semibold ${
-                      sev === "critical" || sev === "high"
-                        ? "border-border-danger bg-surface-danger text-text-danger"
-                        : sev === "medium"
-                          ? "border-border-warning bg-surface-warning text-text-warning"
-                          : "border-border-info bg-surface-info text-text-info"
-                    }`}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${getSeverityChipStyles(
+                      sev,
+                    )}`}
                   >
                     <SeverityIcon severity={sev} />
                     <span>
@@ -434,7 +578,7 @@ export function FindingsPane({
             </div>
 
             {factsSummary ? (
-              <div className="pt-1 border-t border-border-subtle text-xs space-y-0.5">
+              <div className="pt-2 border-t border-border-subtle text-xs space-y-0.5">
                 <p className="text-text-secondary">
                   {(messages.factsSummaryLine ?? "")
                     .replace("{extracted}", String(factsSummary.verified_clauses))
@@ -469,11 +613,14 @@ export function FindingsPane({
 
           {/* Finding Cards */}
           <div className="space-y-3">
-            {findings.map((finding) => {
+            {findings.map((finding, idx) => {
               const isSelected = selectedFindingId === finding.id;
-              const isWhyExpanded = expandedWhyIds.has(finding.id);
-              const isAskExpanded = expandedAskIds.has(finding.id);
-              const isDetailsExpanded = expandedDetailsIds.has(finding.id);
+              const isWhyExpanded = initialExpandedAll || expandedWhyIds.has(finding.id);
+              const isAskExpanded = initialExpandedAll || expandedAskIds.has(finding.id);
+              const isDetailsExpanded = initialExpandedAll || expandedDetailsIds.has(finding.id);
+              const isEvidenceExpanded = initialExpandedAll || expandedEvidenceIds.has(finding.id);
+              const isSuggestedExpanded = initialExpandedAll || expandedSuggestedIds.has(finding.id);
+              const isLawyerExpanded = initialExpandedAll || expandedLawyerIds.has(finding.id);
 
               const findingObj: Finding = {
                 rule_id: finding.rule_id as RuleId,
@@ -566,12 +713,18 @@ export function FindingsPane({
                 }
               }
 
+              // 30ms stagger for cards (max 8)
+              const staggerDelay = Math.min(idx, 7) * 30;
+
               return (
                 <div
                   key={finding.id}
-                  className={`w-full rounded-md border p-3.5 text-left transition-colors ${
+                  style={{ animationDelay: `${staggerDelay}ms` }}
+                  className={`animate-card-in w-full rounded-md border p-4 text-left transition-colors ${getFindingCardBorderAccent(
+                    finding.severity,
+                  )} ${
                     isSelected
-                      ? "border-accent-primary bg-accent-soft shadow-xs"
+                      ? "bg-accent-soft/70 shadow-xs ring-1 ring-accent-primary"
                       : "border-border-default bg-surface-canvas hover:border-border-strong hover:bg-surface-subtle"
                   }`}
                 >
@@ -582,16 +735,12 @@ export function FindingsPane({
                     onClick={() => onSelectFinding(finding)}
                     className="w-full text-left rounded focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                   >
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
                       {/* Severity Label + Icon */}
                       <span
-                        className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-semibold ${
-                          finding.severity === "critical" || finding.severity === "high"
-                            ? "border-border-danger bg-surface-danger text-text-danger"
-                            : finding.severity === "medium"
-                              ? "border-border-warning bg-surface-warning text-text-warning"
-                              : "border-border-info bg-surface-info text-text-info"
-                        }`}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${getSeverityChipStyles(
+                          finding.severity,
+                        )}`}
                       >
                         <SeverityIcon severity={finding.severity} />
                         <span>{messages.severityLabels[finding.severity]}</span>
@@ -599,14 +748,14 @@ export function FindingsPane({
 
                       {/* Page references */}
                       {pageNumbers.length > 0 ? (
-                        <span className="inline-flex items-center rounded border border-border-default bg-surface-panel px-2 py-0.5 text-xs font-semibold text-text-primary">
+                        <span className="inline-flex items-center rounded border border-border-default bg-surface-panel px-2 py-0.5 text-xs font-semibold text-text-secondary">
                           {messages.pageLabel} {pageNumbers.join(", ")}
                         </span>
                       ) : null}
                     </div>
 
-                    {/* Title & Vs Line */}
-                    <h3 className="text-sm font-bold text-text-primary">
+                    {/* Stronger Title (weight 600) & Vs Line */}
+                    <h3 className="text-sm font-semibold text-text-primary leading-snug">
                       {text.title}
                     </h3>
                     <p className="mt-1 text-xs font-medium text-text-secondary">
@@ -621,39 +770,50 @@ export function FindingsPane({
                     ) : null}
                   </button>
 
-                  {/* Lawyer Review Badge & Reasons */}
+                  {/* Compact Lawyer Review Chip that expands to reasons */}
                   {finding.lawyer_review ? (
-                    <div className="mt-2.5 rounded border border-border-warning bg-surface-warning p-2 text-xs text-text-warning">
-                      <div className="flex items-center gap-1.5 font-semibold">
+                    <div className="mt-2.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleLawyer(finding.id)}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100 transition-colors focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                      >
                         <svg
                           aria-hidden="true"
                           viewBox="0 0 16 16"
                           fill="currentColor"
-                          className="h-3.5 w-3.5 shrink-0"
+                          className="h-3.5 w-3.5 shrink-0 text-amber-700"
                         >
                           <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
                           <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z" />
                         </svg>
                         <span>{messages.lawyerReviewBadge}</span>
-                      </div>
-                      {findingObj.lawyer_review_reasons.length > 0 ? (
-                        <ul className="mt-1 list-disc pl-4 space-y-0.5 text-[11px]">
-                          {findingObj.lawyer_review_reasons
-                            .map((r) => messages.lawyerReviewReasons[r as keyof typeof messages.lawyerReviewReasons])
-                            .filter(Boolean)
-                            .map((reasonText, idx) => (
-                              <li key={idx}>
-                                {reasonText}
-                              </li>
-                            ))}
-                        </ul>
+                        <ChevronIcon isExpanded={isLawyerExpanded} />
+                      </button>
+
+                      {isLawyerExpanded && findingObj.lawyer_review_reasons.length > 0 ? (
+                        <div className="mt-2 rounded-md border border-amber-200 bg-amber-50/60 p-2.5 text-xs text-amber-900">
+                          <ul className="list-disc pl-4 space-y-1 text-[11px]">
+                            {findingObj.lawyer_review_reasons
+                              .map(
+                                (r) =>
+                                  messages.lawyerReviewReasons[
+                                    r as keyof typeof messages.lawyerReviewReasons
+                                  ],
+                              )
+                              .filter(Boolean)
+                              .map((reasonText, rIdx) => (
+                                <li key={rIdx}>{reasonText}</li>
+                              ))}
+                          </ul>
+                        </div>
                       ) : null}
                     </div>
                   ) : null}
 
-                  {/* Expanders: Why this matters / What to ask for */}
-                  <div className="mt-3 space-y-2 border-t border-border-subtle pt-2.5">
-                    {/* Why this matters */}
+                  {/* Labeled Sections with Chevrons and Consistent Spacing */}
+                  <div className="mt-3.5 space-y-2.5 border-t border-border-subtle pt-3">
+                    {/* 1. Why this matters */}
                     <div>
                       <button
                         type="button"
@@ -661,12 +821,10 @@ export function FindingsPane({
                         className="flex w-full items-center justify-between text-left text-xs font-semibold text-text-primary hover:text-accent-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                       >
                         <span>{messages.whyThisMatters}</span>
-                        <span className="text-[10px] text-text-muted">
-                          {isWhyExpanded ? "−" : "+"}
-                        </span>
+                        <ChevronIcon isExpanded={isWhyExpanded} />
                       </button>
                       {isWhyExpanded ? (
-                        <div className="mt-1 text-xs leading-relaxed text-text-secondary">
+                        <div className="mt-1.5 text-xs leading-relaxed text-text-secondary">
                           <p>{text.reason}</p>
                           {text.uncertainty ? (
                             <p className="mt-1 text-text-warning">{text.uncertainty}</p>
@@ -675,7 +833,7 @@ export function FindingsPane({
                       ) : null}
                     </div>
 
-                    {/* What to ask for */}
+                    {/* 2. What to ask for */}
                     <div>
                       <button
                         type="button"
@@ -683,108 +841,113 @@ export function FindingsPane({
                         className="flex w-full items-center justify-between text-left text-xs font-semibold text-text-primary hover:text-accent-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                       >
                         <span>{messages.whatToAskFor}</span>
-                        <span className="text-[10px] text-text-muted">
-                          {isAskExpanded ? "−" : "+"}
-                        </span>
+                        <ChevronIcon isExpanded={isAskExpanded} />
                       </button>
                       {isAskExpanded ? (
-                        <div className="mt-1 space-y-2.5">
+                        <div className="mt-1.5 space-y-2">
                           <p className="text-xs leading-relaxed text-text-secondary">
                             {text.recommendation}
                           </p>
-
-                          {/* Suggested wording */}
-                          <div className="rounded border border-border-default bg-surface-subtle p-2.5 space-y-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-semibold text-text-primary">
-                                {messages.suggestedWordingTitle}
-                              </span>
-                              <CopyButton
-                                textToCopy={getSuggestedWording(findingObj, playbook)}
-                                label={messages.copyButton}
-                                copiedLabel={messages.copiedButton}
-                              />
-                            </div>
-                            {getSuggestedWordingNote(findingObj, playbook) ? (
-                              <p className="text-[11px] text-text-muted">
-                                {getSuggestedWordingNote(findingObj, playbook)}
-                              </p>
-                            ) : null}
-                            <div className="font-serif-contract text-xs text-text-primary bg-surface-canvas p-2.5 rounded border border-border-subtle whitespace-pre-wrap select-all">
-                              {getSuggestedWording(findingObj, playbook)}
-                            </div>
-                            <p className="text-[11px] text-text-muted">
-                              {messages.starterDraftDisclaimer}
-                              {finding.lawyer_review ? ` ${messages.lawyerReviewNote}` : ""}
-                            </p>
-                          </div>
                         </div>
                       ) : null}
                     </div>
 
-                    {/* Evidence Quotes */}
-                    {evidenceList.length > 0 ? (
-                      <div className="pt-1">
-                        <span className="block text-xs font-semibold text-text-secondary">
-                          {messages.evidenceTitle}
-                        </span>
-                        <div className="mt-1 space-y-1.5">
-                          {(() => {
-                            const isEvidenceExpanded = expandedEvidenceIds.has(finding.id);
-                            const visibleEvidence =
-                              isEvidenceExpanded || evidenceList.length <= 3
-                                ? evidenceList
-                                : evidenceList.slice(0, 3);
-
-                            return (
-                              <>
-                                {visibleEvidence.map((ev, idx) => (
-                                  <button
-                                    key={idx}
-                                    type="button"
-                                    onClick={() => {
-                                      onSelectFinding(finding);
-                                      onSelectEvidence?.(finding, ev);
-                                    }}
-                                    className="w-full rounded border border-border-subtle bg-surface-panel p-2 text-left font-serif-contract text-xs text-text-primary hover:border-accent-primary hover:bg-accent-soft focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
-                                  >
-                                    <span className="mb-0.5 block font-sans text-[10px] font-bold text-text-muted">
-                                      {messages.pageLabel} {ev.page_number}
-                                    </span>
-                                    <span>&ldquo;{ev.quote}&rdquo;</span>
-                                  </button>
-                                ))}
-                                {evidenceList.length > 3 ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleEvidence(finding.id)}
-                                    className="mt-1 block text-xs font-medium text-accent-primary hover:underline focus:outline-none"
-                                  >
-                                    {isEvidenceExpanded
-                                      ? messages.showFewerPassages
-                                      : messages.moreRelatedPassages.replace("{n}", String(evidenceList.length - 3))}
-                                  </button>
-                                ) : null}
-                              </>
-                            );
-                          })()}
+                    {/* 3. Suggested wording */}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => toggleSuggested(finding.id)}
+                        className="flex w-full items-center justify-between text-left text-xs font-semibold text-text-primary hover:text-accent-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                      >
+                        <span>{messages.suggestedWordingTitle}</span>
+                        <ChevronIcon isExpanded={isSuggestedExpanded} />
+                      </button>
+                      {isSuggestedExpanded ? (
+                        <div className="mt-1.5 rounded-md border border-border-default bg-surface-subtle p-2.5 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-text-primary">
+                              {messages.suggestedWordingTitle}
+                            </span>
+                            <CopyButton
+                              textToCopy={getSuggestedWording(findingObj, playbook)}
+                              label={messages.copyButton}
+                              copiedLabel={messages.copiedButton}
+                            />
+                          </div>
+                          {getSuggestedWordingNote(findingObj, playbook) ? (
+                            <p className="text-[11px] text-text-muted">
+                              {getSuggestedWordingNote(findingObj, playbook)}
+                            </p>
+                          ) : null}
+                          <div className="font-serif-contract text-xs text-text-primary bg-surface-canvas p-2.5 rounded border border-border-subtle whitespace-pre-wrap select-all leading-relaxed">
+                            {getSuggestedWording(findingObj, playbook)}
+                          </div>
+                          <p className="text-[11px] text-text-muted">
+                            {messages.starterDraftDisclaimer}
+                            {finding.lawyer_review ? ` ${messages.lawyerReviewNote}` : ""}
+                          </p>
                         </div>
+                      ) : null}
+                    </div>
+
+                    {/* 4. Evidence */}
+                    {evidenceList.length > 0 ? (
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => toggleEvidence(finding.id)}
+                          className="flex w-full items-center justify-between text-left text-xs font-semibold text-text-secondary hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                        >
+                          <span>{messages.evidenceTitle}</span>
+                          <ChevronIcon isExpanded={isEvidenceExpanded} />
+                        </button>
+                        {isEvidenceExpanded ? (
+                          <div className="mt-2 space-y-2">
+                            {evidenceList.map((ev, evIdx) => (
+                              <blockquote
+                                key={evIdx}
+                                onClick={() => {
+                                  onSelectFinding(finding);
+                                  onSelectEvidence?.(finding, ev);
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    onSelectFinding(finding);
+                                    onSelectEvidence?.(finding, ev);
+                                  }
+                                }}
+                                className="cursor-pointer border-l-2 border-accent-primary bg-surface-panel hover:bg-accent-soft/60 rounded-r-md p-2.5 transition-colors focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
+                              >
+                                <div className="mb-1 flex items-center justify-between">
+                                  <span className="inline-flex items-center rounded-sm border border-border-default bg-surface-subtle px-1.5 py-0.5 text-[10px] font-semibold text-text-secondary">
+                                    {messages.pageLabel} {ev.page_number}
+                                  </span>
+                                </div>
+                                <p className="font-serif-contract text-xs text-text-primary italic leading-relaxed">
+                                  &ldquo;{ev.quote}&rdquo;
+                                </p>
+                              </blockquote>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
 
-                    {/* Details Used */}
+                    {/* 5. Details used */}
                     {factsUsed.length > 0 ? (
-                      <div className="pt-1">
+                      <div>
                         <button
                           type="button"
                           onClick={() => toggleDetails(finding.id)}
                           className="flex w-full items-center justify-between text-left text-[11px] font-semibold text-text-muted hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
                         >
                           <span>{messages.detailsUsed}</span>
-                          <span className="text-[10px]">{isDetailsExpanded ? "−" : "+"}</span>
+                          <ChevronIcon isExpanded={isDetailsExpanded} />
                         </button>
                         {isDetailsExpanded ? (
-                          <div className="mt-1 space-y-0.5 rounded border border-border-subtle bg-surface-subtle p-2 font-mono text-[11px] text-text-secondary">
+                          <div className="mt-1.5 space-y-1 rounded border border-border-subtle bg-surface-subtle p-2.5 font-mono text-[11px] text-text-secondary">
                             {factsUsed.map(({ key, label, displayValue }) => (
                               <div key={key} className="flex justify-between gap-2">
                                 <span className="font-medium text-text-muted">{label}:</span>
@@ -801,7 +964,7 @@ export function FindingsPane({
             })}
           </div>
 
-          {/* Draft message to the client (collapsible panel) */}
+          {/* Draft message to the client */}
           <div className="rounded-md border border-border-default bg-surface-canvas">
             <button
               type="button"
@@ -809,9 +972,7 @@ export function FindingsPane({
               className="flex w-full items-center justify-between p-3.5 text-left text-xs font-semibold text-text-primary hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
             >
               <span>{messages.draftMessageTitle}</span>
-              <span className="text-xs text-text-muted">
-                {isClientMessageExpanded ? "−" : "+"}
-              </span>
+              <ChevronIcon isExpanded={isClientMessageExpanded} />
             </button>
             {isClientMessageExpanded ? (
               <div className="border-t border-border-subtle p-3.5 space-y-2.5">

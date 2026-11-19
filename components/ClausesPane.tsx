@@ -81,9 +81,9 @@ export function ClausesPane({
   return (
     <section
       aria-label={messages.tabTitle}
-      className="rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6"
+      className="flex flex-col h-full rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6 overflow-hidden"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
         <h2 className="text-base font-semibold text-text-primary">{messages.tabTitle}</h2>
         {clauses.length > 0 ? (
           <span className="inline-flex items-center rounded border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-semibold text-text-secondary">
@@ -207,7 +207,7 @@ export function ClausesPane({
 
       {/* 4. Results State */}
       {clauses.length > 0 && status !== "running" ? (
-        <div className="mt-4 space-y-5">
+        <div className="flex-1 overflow-y-auto mt-4 space-y-5 pr-1">
           {/* Results Header */}
           <div className="rounded-md border border-border-default bg-surface-subtle p-3.5">
             <p className="text-xs font-medium text-text-primary">

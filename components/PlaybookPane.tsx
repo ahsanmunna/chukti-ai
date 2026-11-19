@@ -89,9 +89,9 @@ export function PlaybookPane({
   return (
     <section
       aria-label={messages.title}
-      className="rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6"
+      className="flex flex-col h-full rounded-lg border border-border-default bg-surface-panel p-4 sm:p-6 overflow-hidden"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-3">
         <h2 className="text-base font-semibold text-text-primary">{messages.title}</h2>
         <span
           className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold ${statusBadge.cls}`}
@@ -100,12 +100,12 @@ export function PlaybookPane({
         </span>
       </div>
 
-      <div className="mt-3 rounded-md border border-border-warning bg-surface-warning px-3 py-2 text-xs font-medium text-text-warning">
+      <div className="shrink-0 mt-3 rounded-md border border-border-warning bg-surface-warning px-3 py-2 text-xs font-medium text-text-warning">
         {messages.starterNote}
       </div>
 
       {!documentId ? (
-        <div className="mt-3 rounded-md border border-border-subtle bg-surface-subtle px-3 py-2.5 text-xs text-text-secondary">
+        <div className="shrink-0 mt-3 rounded-md border border-border-subtle bg-surface-subtle px-3 py-2.5 text-xs text-text-secondary">
           {messages.noDocumentNotice}
         </div>
       ) : null}
@@ -114,12 +114,12 @@ export function PlaybookPane({
         <div
           role="status"
           aria-live="polite"
-          className="mt-4 rounded-md border border-border-subtle bg-surface-subtle p-4 text-sm text-text-secondary"
+          className="mt-4 rounded-md border border-border-subtle bg-surface-subtle p-4 text-sm text-text-secondary my-auto"
         >
           {messages.loadingState}
         </div>
       ) : (
-        <>
+        <div className="flex-1 overflow-y-auto pr-1">
           {loadError ? (
             <div
               role="alert"
@@ -631,7 +631,7 @@ export function PlaybookPane({
               </div>
             </div>
           </form>
-        </>
+        </div>
       )}
     </section>
   );
