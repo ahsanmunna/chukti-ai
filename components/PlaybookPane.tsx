@@ -609,6 +609,10 @@ export function PlaybookPane({
                   </div>
                 ) : null}
 
+                <p className="text-[13px] leading-[1.6] text-text-secondary">
+                  {messages.analyzeHelperLine ?? messages.analyzeHelper}
+                </p>
+
                 {/* Primary Analyze Contract Button */}
                 <button
                   type="button"
@@ -620,7 +624,7 @@ export function PlaybookPane({
                     isExtracting ||
                     isAnalyzingRisks
                   }
-                  className="w-full rounded-md bg-accent-primary px-4 py-2.5 text-sm font-semibold text-text-inverse hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:border disabled:border-border-default disabled:bg-surface-subtle disabled:text-text-secondary"
+                  className="w-full rounded-md bg-accent-primary px-4 py-2.5 text-sm font-semibold text-text-inverse hover:bg-accent-primary-hover shadow-xs focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isAnalyzingContract
                     ? analysisStep === 1

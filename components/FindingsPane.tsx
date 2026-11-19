@@ -36,6 +36,7 @@ interface FindingsPaneProps {
   factsSummary?: FactsSummary | null;
   initialExpandedAll?: boolean;
   playbook?: PlaybookPreferences;
+  onGoToPlaybook?: () => void;
 }
 
 function CopyButton({
@@ -228,6 +229,7 @@ export function FindingsPane({
   factsSummary,
   initialExpandedAll = false,
   playbook = DEFAULT_PLAYBOOK,
+  onGoToPlaybook,
 }: FindingsPaneProps) {
   const [isClientMessageExpanded, setIsClientMessageExpanded] = useState(false);
 
@@ -478,11 +480,10 @@ export function FindingsPane({
 
           <button
             type="button"
-            onClick={onAnalyze}
-            disabled={!documentId || !hasClauses || isAnalyzing}
-            className="inline-flex items-center rounded-md bg-accent-primary px-4 py-2 text-[13px] font-semibold text-text-inverse hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={onGoToPlaybook}
+            className="inline-flex items-center rounded-md bg-accent-primary px-4 py-2 text-[13px] font-semibold text-text-inverse hover:bg-accent-primary-hover shadow-xs focus-visible:ring-2 focus-visible:ring-accent-primary focus:outline-none"
           >
-            {isAnalyzing ? messages.analyzingButton : messages.analyzeButton}
+            {messages.goToPlaybookButton ?? messages.goToPlaybook}
           </button>
         </div>
       ) : null}

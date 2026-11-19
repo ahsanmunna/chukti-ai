@@ -212,10 +212,10 @@ export function ContractWorkspace() {
     }
   };
 
-  const loadFindingsForDocument = async (documentId: string) => {
+  const loadFindingsForDocument = async (documentId: string): Promise<boolean> => {
     try {
       const response = await fetch(`/api/documents/${documentId}/findings`);
-      if (!response.ok) return;
+      if (!response.ok) return false;
       const data = (await response.json()) as {
         findings?: FindingRow[];
         facts_summary?: FactsSummary | null;
@@ -228,11 +228,14 @@ export function ContractWorkspace() {
         setFindingsStatus("succeeded");
         const snap = data.findings[0]?.playbook_snapshot as { is_default?: boolean } | null;
         setPlaybookUsed(snap?.is_default ? "defaults" : "saved");
+        return true;
       } else {
         setFindings([]);
+        return false;
       }
     } catch {
       // Non-fatal on initial load
+      return false;
     }
   };
 
@@ -417,12 +420,12 @@ export function ContractWorkspace() {
       }
       setDocumentData({ document: json.document, pages: json.pages });
       setDocStatus("loaded");
-      setActiveRightTab("findings");
-      await Promise.all([
+      const [, , hasFindings] = await Promise.all([
         loadPlaybookForDocument(json.document.id),
         loadClausesForDocument(json.document.id),
         loadFindingsForDocument(json.document.id),
       ]);
+      setActiveRightTab(hasFindings ? "findings" : "playbook");
     } catch {
       setDocStatus("error");
       setDocError({
@@ -517,7 +520,7 @@ export function ContractWorkspace() {
         });
         setDocStatus("loaded");
         setIsLoadExistingError(false);
-        setActiveRightTab("findings");
+        setActiveRightTab("playbook");
         const nextUrl = new URL(window.location.href);
         nextUrl.searchParams.set("documentId", parsed.document.id);
         window.history.replaceState(null, "", nextUrl.toString());
@@ -1006,6 +1009,7 @@ export function ContractWorkspace() {
                       isAnalyzing={findingsStatus === "running" || analysisStep !== null}
                       factsSummary={factsSummary}
                       playbook={playbook}
+                      onGoToPlaybook={() => setActiveRightTab("playbook")}
                     />
                   </div>
                 )}
