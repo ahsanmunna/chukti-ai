@@ -5,6 +5,13 @@ Built by **Team Mythic Order** for the International AI Builders Congress 2026 (
 
 > **Not legal advice.** Chukti AI helps organize contract text and review preferences. Have a qualified lawyer review important terms before signing. This is a prototype.
 
+## Try it
+
+- **Live demo:** https://chukti-ai-pi.vercel.app
+- **Sample result (no AI call, nothing to wait for):** https://chukti-ai-pi.vercel.app/?documentId=409cf655-e62a-458f-82ee-15c98e77aa84
+- Test PDFs (synthetic contracts) are in [`tests/contracts/`](tests/contracts/). **Only upload public or synthetic contracts.**
+- The live demo runs on free tiers (Vercel, Supabase, Gemini). If it says the AI service is busy, wait a minute and retry, or open the sample result above.
+
 ---
 
 ## The problem
@@ -46,7 +53,8 @@ PDF text
 
 - Analyzing sends the **contract text to Google's Gemini API**. We use the **free tier, where Google may use submitted content to improve its products**. **Do not analyze confidential contracts.** The app shows this notice before analysis.
 - All development and testing used **synthetic contracts** (in `tests/contracts/`). No real client contract was used.
-- Documents and results are stored in a local Supabase (Postgres) database with row-level security (deny by default); the service key is server-side only.
+- Documents and results are stored in a Supabase (Postgres) database with row-level security (deny by default); the service key is server-side only.
+- Planned: a privacy-preserving option (a paid no-training API tier or a self-hosted model) for confidential contracts, and a data-location choice for Bangladeshi users.
 
 ## Evaluation
 
@@ -116,7 +124,15 @@ Next.js 16 (Turbopack), React 19, Tailwind, zod, Vitest, Supabase (local Postgre
 - Explicit "not legal advice" notice and "needs lawyer review" flags on high-stakes items.
 - Every finding is backed by a quote verified word-for-word in the document.
 - The model never sets severity; rules do. Severity is a prioritization aid, never a legal probability.
+- Bias and consistency: the model only labels facts, and fixed, tested rules set severity, so the same facts always give the same result. Playbook defaults are starter defaults and are meant to be lawyer-reviewed before real use. The evaluation covers several contract styles and includes a "looks risky but fine" contract to check for false alarms.
 - Data-sharing notice before analysis; synthetic data only in this repo.
+
+## Business model and scalability (plan, not yet validated)
+
+- **Hypothesis:** free for individual freelancers; paid plans for agencies and freelancer communities; optional paid lawyer-review referral.
+- **Scaling:** the app is stateless (Next.js on serverless hosting, Postgres for data), and risk rules are data-driven, so new contract types and new governing-law rule packs can be added per country.
+- **Cost and quotas:** each analysis makes two LLM stages (clauses, then facts), and facts are cached per document and prompt version. The prototype runs on free tiers with small daily limits, so a production version needs a paid API tier.
+- **Users:** Bangladeshi freelancers at home and abroad first, then freelancers in other emerging markets.
 
 ## Roadmap
 
