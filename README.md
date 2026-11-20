@@ -1,6 +1,6 @@
 # Chukti AI
 
-**A Bangla/English contract-protection copilot for Bangladeshi freelance developers.**
+**A Bangla/English contract-protection copilot for Bangladeshi freelance developers and small software agencies.**
 Built by **Team Mythic Order** for the International AI Builders Congress 2026 ("Idea to Unicorn").
 
 > **Not legal advice.** Chukti AI helps organize contract text and review preferences. Have a qualified lawyer review important terms before signing. This is a prototype.
@@ -8,6 +8,7 @@ Built by **Team Mythic Order** for the International AI Builders Congress 2026 (
 ## Try it
 
 - **Live demo:** https://chukti-ai-pi.vercel.app
+- **Technical documentation (architecture, rules, stack, evaluation):** https://chukti-ai-pi.vercel.app/docs
 - **Sample result (no AI call, nothing to wait for):** https://chukti-ai-pi.vercel.app/?documentId=409cf655-e62a-458f-82ee-15c98e77aa84
 - Test PDFs (synthetic contracts) are in [`tests/contracts/`](tests/contracts/). **Only upload public or synthetic contracts.**
 - The live demo runs on free tiers (Vercel, Supabase, Gemini). If it says the AI service is busy, wait a minute and retry, or open the sample result above.
@@ -44,17 +45,18 @@ PDF text
 ```
 
 - **The model never decides the risk.** It only reads text and labels facts. Fixed, tested rules produce the findings, so the same facts always give the same result.
-- **Rules (version v5):** PAY-1, PAY-2, PAY-3, LIAB-1, IP-1, TERM-1, TERM-2, SCOPE-1, LAW-1, IND-1, DEF-1, ACC-1, plus combined rules COMBO-1 (critical) and COMBO-2 (high). See [`docs/RULES.md`](docs/RULES.md).
+- **Rules (version v5):** 12 individual rules (PAY-1, PAY-2, PAY-3, LIAB-1, IP-1, TERM-1, TERM-2, SCOPE-1, LAW-1, IND-1, DEF-1, ACC-1) plus 2 combined rules, COMBO-1 (critical) and COMBO-2 (high): 14 in total. See [`docs/RULES.md`](docs/RULES.md).
 - **Safeguards in code:** keyword backstops for termination clauses, foreign law derived in code, quote verification.
-- **Not RAG.** The approach is LLM extraction plus a deterministic rule engine.
+- **Not RAG.** The approach is LLM extraction plus a deterministic rule engine. The full document is analyzed page by page, so clauses are never split by chunking.
 - Suggested wording and client messages are **deterministic templates** (English only), not free-form model output. They are starter drafts, not lawyer-reviewed.
 
 ## Data and privacy
 
-- Analyzing sends the **contract text to Google's Gemini API**. We use the **free tier, where Google may use submitted content to improve its products**. **Do not analyze confidential contracts.** The app shows this notice before analysis.
+- Analyzing sends the **contract text to Google's Gemini API**. We use the **free tier, where Google may use submitted content to improve its products**. **Do not analyze confidential or NDA-covered contracts.** The app shows this notice before analysis.
 - All development and testing used **synthetic contracts** (in `tests/contracts/`). No real client contract was used.
 - Documents and results are stored in a Supabase (Postgres) database with row-level security (deny by default); the service key is server-side only.
-- Planned: a privacy-preserving option (a paid no-training API tier or a self-hosted model) for confidential contracts, and a data-location choice for Bangladeshi users.
+- **Planned, not implemented:** local on-device inference (for example Ollama or llama.cpp with a quantized open-weight model) or a paid no-training API tier, for confidential contracts, and a data-location choice for Bangladeshi users.
+- See [`docs/DATA_AND_PRIVACY.md`](docs/DATA_AND_PRIVACY.md) for the full notice.
 
 ## Evaluation
 
@@ -88,7 +90,7 @@ cp .env.example .env.local   # on Windows PowerShell: Copy-Item .env.example .en
 # edit .env.local: paste the local anon and service_role keys from `supabase status`
 # and your own GEMINI_API_KEY. Never commit .env.local.
 
-npm run dev               # http://localhost:3000
+npm run dev               # http://localhost:3000  (documentation page: http://localhost:3000/docs)
 ```
 
 Then upload one of the PDFs in `tests/contracts/`.
@@ -109,7 +111,12 @@ Free-tier Gemini has small daily limits. If the service reports it is busy, wait
 
 ## Tech stack
 
-Next.js 16 (Turbopack), React 19, Tailwind, zod, Vitest, Supabase (local Postgres with RLS), Google Gemini REST API.
+- **Frontend:** Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS v4, TypeScript
+- **Parsing and validation:** unpdf (PDF text extraction), zod (schema validation of all LLM output)
+- **Backend and data:** Supabase (PostgreSQL with row-level security)
+- **AI:** Google Gemini REST API (`gemini-3.6-flash`, optional fallback model), custom fetch-based client with retries and backoff, temperature 0, strict JSON schema
+- **Quality:** Vitest (unit and integration tests), 7-contract evaluation suite
+- **Hosting:** Vercel
 
 ## Known limitations
 
@@ -117,6 +124,7 @@ Next.js 16 (Turbopack), React 19, Tailwind, zod, Vitest, Supabase (local Postgre
 - Findings and drafts are in English; the interface and finding explanations switch to Bangla, but drafts are not translated yet.
 - Five playbook preferences only; defaults are starter defaults, not lawyer-reviewed.
 - Depends on Gemini availability and free-tier limits; model output can vary between runs.
+- Contract text is sent to a cloud API; no local processing option yet.
 - Small evaluation on synthetic contracts.
 
 ## Ethical safeguards
@@ -140,7 +148,7 @@ Next.js 16 (Turbopack), React 19, Tailwind, zod, Vitest, Supabase (local Postgre
 2. Scanned-PDF support.
 3. Lawyer-reviewed playbook defaults and clause templates for Bangladesh.
 4. Pilot with real freelancers; measure review time and issues caught.
-5. More preferences, more contract types, and a privacy-preserving model option for confidential contracts.
+5. More preferences, more contract types, and a privacy-preserving option for confidential contracts (local on-device inference or a no-training API tier).
 
 ## Team Mythic Order
 
