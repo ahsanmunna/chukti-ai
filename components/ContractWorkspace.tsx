@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { DocumentMetadataDto, DocumentPageDto } from "@/lib/documents/types";
 import { type Locale, getMessages } from "@/lib/i18n";
 import {
@@ -691,11 +692,19 @@ export function ContractWorkspace() {
             </span>
           </div>
 
-          <div
-            role="group"
-            aria-label={messages.header.languageLabel}
-            className="inline-flex shrink-0 items-center rounded-md border border-border-default bg-surface-subtle p-0.5"
-          >
+          <div className="flex items-center gap-2">
+            <Link
+              href="/docs"
+              className="inline-flex shrink-0 items-center rounded-md border border-border-default bg-surface-subtle px-2.5 py-1 text-xs font-semibold text-text-secondary hover:text-text-primary hover:border-border-strong tab-transition"
+            >
+              Docs
+            </Link>
+
+            <div
+              role="group"
+              aria-label={messages.header.languageLabel}
+              className="inline-flex shrink-0 items-center rounded-md border border-border-default bg-surface-subtle p-0.5"
+            >
             <button
               type="button"
               aria-pressed={locale === "en"}
@@ -720,6 +729,7 @@ export function ContractWorkspace() {
             >
               {messages.header.langBn}
             </button>
+            </div>
           </div>
         </div>
       </header>
